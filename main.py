@@ -52,8 +52,8 @@ class InterpreterApp:
         
         #(2) Text editor - Allows you to view the code you want to run. The text editor should be editable, and edits done should be reflected once the code is run.
         text_editor_part = tk.Frame(self.horizontal_pw)
-        text_editor = tk.Text(text_editor_part, height=10, wrap="word") #Allow user to type and edit lol code
-        text_editor.pack(fill=tk.BOTH, expand=True)
+        self.text_editor = tk.Text(text_editor_part, height=10, wrap="word") #Allow user to type and edit lol code
+        self.text_editor.pack(fill=tk.BOTH, expand=True)
         self.horizontal_pw.add(text_editor_part) #Add to horizontal paned window
 
         #(3) List of Tokens - This should be updated every time the Execute/Run button (5) is pressed. This should contain all the lexemes detected from the code being ran, and their classification.
