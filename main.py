@@ -136,13 +136,24 @@ class InterpreterApp:
             self.file_name.config(text=file_name) #Update (None) to the selected file name
         else:
             tk.messagebox.showerror("Invalid File", "Please select a valid .lol file.")
+            return
 
-        #TODO: Load the contents of the selected file into the text editor
+        #Load the contents of the selected file into the text editor (this part will execute if the function did not return since file was a valid lol file)
+        with open(file_path, "r") as file:
+            lolcode = file.read()
+            self.text_editor.delete(1.0, tk.END)
+            self.text_editor.insert(tk.END, lolcode)
 
     # -----------------------------------------------------------------------------------------
     # Execute the code from the text editor after pressing the execute button
     # -----------------------------------------------------------------------------------------
     def execute_code(self):
+        #(3) List of Tokens – This should be updated every time the Execute/Run button (5) is pressed.
+        #TODO: 1. Tokenize the contents and display in the list of tokens (lexemes) - LEXICAL ANALYSIS
+          
+        #(4) Symbol Table – This should be updated every time the Execute/Run button (5) is pressed. 
+        #TODO: 2. Convert tokens to symbol table - SYNTAX ANALYSIS
+
         pass
 
 
