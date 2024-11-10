@@ -159,6 +159,7 @@ class InterpreterApp:
 
 # Create and start the app in maximized state
 root = tk.Tk()
-root.state("zoomed")
+# root.state("zoomed")
+root.state("normal")
 app = InterpreterApp(root)
 root.mainloop()
