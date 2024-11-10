@@ -1,11 +1,11 @@
+# MODULES
 import re
 
+# VARIABLES
 symbolTable = {}
 lexemeDictionary = {}
 
-'''
-    Regex for lexeme matching paired with its type 
-'''
+# Regex Dictionary with the Regex (Key) - Type (Value)
 regexDictionary = {
     r'^-?[0-9]+$': "NUMBR Literal",
     r'^-?[0-9]+\.[0-9]+$': "NUMBAR Literal",
@@ -69,11 +69,19 @@ regexDictionary = {
     r'^[a-zA-Z][a-zA-Z0-9_]*$': "Identifier"
 }
 
+# File Reading Function
 def readlolcode(lolcodeFile):
     with open(lolcodeFile) as file:
         code = "".join(file.readlines())
     return code
 
+# Print Function
+def printTable(symbolTable):
+    print("LEXEME-TYPE-VALUE")
+    for lexeme in symbolTable.keys():
+        print(lexeme,"-", symbolTable[lexeme][0], "-", symbolTable[lexeme][1])
+
+# Main Function
 def getSymbolTable(lolcode):
     validRegex = list(regexDictionary.keys())
 
@@ -81,7 +89,7 @@ def getSymbolTable(lolcode):
         # find the match
         lexemes = re.findall(current, lolcode)
         # remove the matched in the code
-        code = re.sub(current, " ", lolcode)
+        lolcode = re.sub(current, " ", lolcode)
 
         # add matched in symbol table
         for currentLexeme in lexemes:
@@ -90,11 +98,7 @@ def getSymbolTable(lolcode):
     
     return symbolTable
 
-def printTable(symbolTable):
-    print("LEXEME-TYPE-VALUE")
-    for lexeme in symbolTable.keys():
-        print(lexeme,"-", symbolTable[lexeme][0], "-", symbolTable[lexeme][1])
-
+# Main Program
 def main():
     lolcode = readlolcode("sample.lol")
     tokens = getSymbolTable(lolcode)
@@ -102,3 +106,4 @@ def main():
     
 if __name__ == "__main__":
     main()
+
