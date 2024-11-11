@@ -11,6 +11,74 @@ References:
 '''
 import tkinter as tk
 from tkinter import filedialog, ttk, PanedWindow
+import re
+
+symbolTable ={}
+lexemeDictionary ={}
+
+regexDictionary = {
+    r'\b-?[0-9]+\b': "NUMBR Literal",
+    r'\b-?[0-9]+\.[0-9]+\b': "NUMBAR Literal",
+    r'\b"([^"\\]|\\.)*"\b': "YARN Literal",
+    r'\b(WIN|FAIL)\b': "TROOF Literal",
+    r'\b(NUMBR|NUMBAR|YARN|TROOF)\b': "TYPE Literal",
+    r'\bHAI\b': "HAI Keyword",
+    r'\bKTHXBYE\b': "KTHXBYE Keyword",
+    r'\bWAZZUP\b': "WAZZUP Keyword",
+    r'\bBUHBYE\b': "BUHBYE Keyword",
+    r'\bBTW\b': "BTW Keyword",
+    r'\bOBTW\b': "OBTW Keyword",
+    r'\bTLDR\b': "TLDR Keyword",
+    r'\bI HAS A\b': "I HAS A Keyword",
+    r'\bITZ\b': "ITZ Keyword",
+    r'\bR\b': "R Keyword",
+    r'\bSUM OF\b': "SUM OF Keyword",
+    r'\bDIFF OF\b': "DIFF OF Keyword",
+    r'\bPRODUKT OF\b': "PRODUKT OF Keyword",
+    r'\bQUOSHUNT OF\b': "QUOSHUNT OF Keyword",
+    r'\bMOD OF\b': "MOD OF Keyword",
+    r'\bBIGGR OF\b': "BIGGR OF Keyword",
+    r'\bSMALLR OF\b': "SMALLR OF Keyword",
+    r'\bBOTH OF\b': "BOTH OF Keyword",
+    r'\bEITHER OF\b': "EITHER OF Keyword",
+    r'\bWON OF\b': "WON OF Keyword",
+    r'\bNOT\b': "NOT Keyword",
+    r'\bANY OF\b': "ANY OF Keyword",
+    r'\bALL OF\b': "ALL OF Keyword",
+    r'\bBOTH SAEM\b': "BOTH SAEM Keyword",
+    r'\bDIFFRINT\b': "DIFFRINT Keyword",
+    r'\bSMOOSH\b': "SMOOSH Keyword",
+    r'\bMAEK\b': "MAEK Keyword",
+    r'\bA\b': "A Keyword",
+    r'\bIS NOW A\b': "IS NOW A Keyword",
+    r'\bVISIBLE\b': "VISIBLE Keyword",
+    r'\bGIMMEH\b': "GIMMEH Keyword",
+    r'\bO RLY\?\b': "O RLY? Keyword",
+    r'\bYA RLY\b': "YA RLY Keyword",
+    r'\bMEBBE\b': "MEBBE Keyword",
+    r'\bNO WAI\b': "NO WAI Keyword",
+    r'\bOIC\b': "OIC Keyword",
+    r'\bWTF\?\b': "WTF? Keyword",
+    r'\bOMG\b': "OMG Keyword",
+    r'\bOMGWTF\b': "OMGWTF Keyword",
+    r'\bIM IN YR\b': "IM IN YR Keyword",
+    r'\bUPPIN\b': "UPPIN Keyword",
+    r'\bNERFIN\b': "NERFIN Keyword",
+    r'\bYR\b': "YR Keyword",
+    r'\bTIL\b': "TIL Keyword",
+    r'\bWILE\b': "WILE Keyword",
+    r'\bIM OUTTA YR\b': "IM OUTTA YR Keyword",
+    r'\bHOW IZ I\b': "HOW IZ I Keyword",
+    r'\bIF U SAY SO\b': "IF U SAY SO Keyword",
+    r'\bGTFO\b': "GTFO Keyword",
+    r'\bFOUND YR\b': "FOUND YR Keyword",
+    r'\bI IZ\b': "I IZ Keyword",
+    r'\bMKAY\b': "MKAY Keyword",
+
+    r'\bAN\b': "AN Keyword",
+
+    r'\b[a-zA-Z][a-zA-Z0-9_]*\b': "Identifier"
+}
 
 class InterpreterApp:
     def __init__(self, root):
@@ -60,20 +128,20 @@ class InterpreterApp:
         tokens_list_part = tk.Frame(self.horizontal_pw)
         tokens_label = tk.Label(tokens_list_part, text="Lexemes")
         tokens_label.pack(anchor="center")
-        lexemes = ttk.Treeview(tokens_list_part, columns=("Lexeme", "Classification"), show="headings") #Divide area into 2 columns
-        lexemes.heading("Lexeme", text="Lexeme", anchor="w")
-        lexemes.heading("Classification", text="Classification", anchor="w")
-        lexemes.pack(fill=tk.BOTH, expand=True)
+        self.lexemes = ttk.Treeview(tokens_list_part, columns=("Lexeme", "Classification"), show="headings") #Divide area into 2 columns
+        self.lexemes.heading("Lexeme", text="Lexeme", anchor="w")
+        self.lexemes.heading("Classification", text="Classification", anchor="w")
+        self.lexemes.pack(fill=tk.BOTH, expand=True)
         self.horizontal_pw.add(tokens_list_part) #Add to horizontal paned window
 
         #(4) Symbol Table - This should be updated every time the Execute/Run button (5) is pressed. This should contain all the variables available in the program being ran, and their updated values.
         symbol_table_part = tk.Frame(self.horizontal_pw)
         symbol_label = tk.Label(symbol_table_part, text="SYMBOL TABLE")
         symbol_label.pack(anchor="center")
-        symbols = ttk.Treeview(symbol_table_part, columns=("Identifier", "Value"), show="headings") #Also divide area into 2 columns
-        symbols.heading("Identifier", text="Identifier", anchor="w")
-        symbols.heading("Value", text="Value", anchor="w")
-        symbols.pack(fill=tk.BOTH, expand=True)
+        self.symbols = ttk.Treeview(symbol_table_part, columns=("Identifier", "Value"), show="headings") #Also divide area into 2 columns
+        self.symbols.heading("Identifier", text="Identifier", anchor="w")
+        self.symbols.heading("Value", text="Value", anchor="w")
+        self.symbols.pack(fill=tk.BOTH, expand=True)
         self.horizontal_pw.add(symbol_table_part) #Add to horizontal paned window
 
         #Add the horizontal paned window to the vertical paned window (essentially this is the upper part)
@@ -150,16 +218,59 @@ class InterpreterApp:
     def execute_code(self):
         #(3) List of Tokens – This should be updated every time the Execute/Run button (5) is pressed.
         #TODO: 1. Tokenize the contents and display in the list of tokens (lexemes) - LEXICAL ANALYSIS
-          
+        lolcode = self.text_editor.get("1.0", tk.END)
+        
+        tokens = self.getSymbolTable(lolcode)
+        
+        self.insertSymbolTable(tokens)
+        
         #(4) Symbol Table – This should be updated every time the Execute/Run button (5) is pressed. 
         #TODO: 2. Convert tokens to symbol table - SYNTAX ANALYSIS
 
         pass
+    
+    def getIdentifier(self, lolcode):
+        nonIdentifierLexemes = []
+        indentifierLexemes = []
+        validNonIdentifier = list(regexDictionary.keys())[0:-1]
+        validIdentifier = list(regexDictionary.keys())[-1]
+    
+        for current in validNonIdentifier:
+            nonIdentifierLexemes = nonIdentifierLexemes + re.findall(current, lolcode)
+            lolcode = re.sub(current, " ", lolcode)
+        indentifierLexemes = re.findall(validIdentifier, lolcode)    
 
+        indentifierLexemes = list(set(indentifierLexemes)-set(nonIdentifierLexemes))
+        return indentifierLexemes
+
+    def getSymbolTable(self, lolcode):
+        dupliCode = lolcode
+        validRegex = list(regexDictionary.keys())
+        identifier = validRegex[-1]
+        
+        for current in validRegex:
+            lexemes = re.findall(current, lolcode)
+            lolcode = re.sub(current, " ", lolcode)
+            print(lolcode)
+            
+            for currentLexeme in lexemes[:-1]:
+                symbolTable[currentLexeme] = [regexDictionary[current], None]
+                lexemeDictionary[currentLexeme] = current
+        
+        for current in self.getIdentifier(dupliCode):
+            symbolTable[current] = [regexDictionary[identifier], None]
+            lexemeDictionary[current] = "Identifier"
+            
+        return symbolTable    
+
+    def insertSymbolTable(self, tokens):
+        for lexeme in symbolTable.keys():
+            self.lexemes.insert('', tk.END, values=(lexeme, symbolTable[lexeme][0]))
+            if(symbolTable[lexeme][0] == "Identifier"):
+                self.symbols.insert('', tk.END, values=(lexeme, symbolTable[lexeme][1]))
+            
 
 # Create and start the app in maximized state
 root = tk.Tk()
-# root.state("zoomed")
-root.state("normal")
 app = InterpreterApp(root)
 root.mainloop()
