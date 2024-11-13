@@ -22,10 +22,8 @@ regexDictionary = {
     r'\b"([^"\\]|\\.)*"\b': "YARN Literal",
     r'\b(WIN|FAIL)\b': "TROOF Literal",
     r'\b(NUMBR|NUMBAR|YARN|TROOF)\b': "TYPE Literal",
-
     r'\bHAI\b': "HAI Keyword",
     r'\bKTHXBYE\b': "KTHXBYE Keyword",
-
     r'\bWAZZUP\b': "WAZZUP Keyword",
     r'\bBUHBYE\b': "BUHBYE Keyword",
     r'\bBTW\b': "BTW Keyword",
@@ -76,6 +74,9 @@ regexDictionary = {
     r'\bFOUND YR\b': "FOUND YR Keyword",
     r'\bI IZ\b': "I IZ Keyword",
     r'\bMKAY\b': "MKAY Keyword",
+  
+    r'\bAN\b': "AN Keyword",
+  
     r'\b[a-zA-Z][a-zA-Z0-9_]*\b': "Identifier"
 }
 
@@ -228,18 +229,37 @@ class InterpreterApp:
 
         pass
     
+    def getIdentifier(self, lolcode):
+        nonIdentifierLexemes = []
+        indentifierLexemes = []
+        validNonIdentifier = list(regexDictionary.keys())[0:-1]
+        validIdentifier = list(regexDictionary.keys())[-1]
+    
+        for current in validNonIdentifier:
+            nonIdentifierLexemes = nonIdentifierLexemes + re.findall(current, lolcode)
+            lolcode = re.sub(current, " ", lolcode)
+        indentifierLexemes = re.findall(validIdentifier, lolcode)    
+
+        indentifierLexemes = list(set(indentifierLexemes)-set(nonIdentifierLexemes))
+        return indentifierLexemes
+
     def getSymbolTable(self, lolcode):
+        dupliCode = lolcode
         validRegex = list(regexDictionary.keys())
+        identifier = validRegex[-1]
         
         for current in validRegex:
             lexemes = re.findall(current, lolcode)
             lolcode = re.sub(current, " ", lolcode)
             print(lolcode)
             
-            for currentLexeme in lexemes:
+            for currentLexeme in lexemes[:-1]:
                 symbolTable[currentLexeme] = [regexDictionary[current], None]
                 lexemeDictionary[currentLexeme] = current
         
+        for current in self.getIdentifier(dupliCode):
+            symbolTable[current] = [regexDictionary[identifier], None]
+            lexemeDictionary[current] = "Identifier"
             
         return symbolTable
     
@@ -248,8 +268,13 @@ class InterpreterApp:
             self.lexemes.insert('', tk.END, values=(lexeme, symbolTable[lexeme][0]))
             if(symbolTable[lexeme][0] == "Identifier"):
                 self.symbols.insert('', tk.END, values=(lexeme, symbolTable[lexeme][1]))
-            
 
+    def insertSymbolTable(self, tokens):
+        for lexeme in symbolTable.keys():
+            self.lexemes.insert('', tk.END, values=(lexeme, symbolTable[lexeme][0]))
+            if(symbolTable[lexeme][0] == "Identifier"):
+                self.symbols.insert('', tk.END, values=(lexeme, symbolTable[lexeme][1]))
+            
 
 # Create and start the app in maximized state
 root = tk.Tk()
