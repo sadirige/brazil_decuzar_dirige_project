@@ -74,9 +74,9 @@ regexDictionary = {
     r'\bFOUND YR\b': "FOUND YR Keyword",
     r'\bI IZ\b': "I IZ Keyword",
     r'\bMKAY\b': "MKAY Keyword",
-
+  
     r'\bAN\b': "AN Keyword",
-
+  
     r'\b[a-zA-Z][a-zA-Z0-9_]*\b': "Identifier"
 }
 
@@ -261,7 +261,13 @@ class InterpreterApp:
             symbolTable[current] = [regexDictionary[identifier], None]
             lexemeDictionary[current] = "Identifier"
             
-        return symbolTable    
+        return symbolTable
+    
+    def insertSymbolTable(self, tokens):
+        for lexeme in symbolTable.keys():
+            self.lexemes.insert('', tk.END, values=(lexeme, symbolTable[lexeme][0]))
+            if(symbolTable[lexeme][0] == "Identifier"):
+                self.symbols.insert('', tk.END, values=(lexeme, symbolTable[lexeme][1]))
 
     def insertSymbolTable(self, tokens):
         for lexeme in symbolTable.keys():
