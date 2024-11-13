@@ -17,11 +17,11 @@ symbolTable ={}
 lexemeDictionary ={}
 
 regexDictionary = {
+    r'[\"][^\"]*[\"]': "YARN Literal",
     r'\b-?[0-9]+\b': "NUMBR Literal",
     r'\b-?[0-9]+\.[0-9]+\b': "NUMBAR Literal",
-    r'\b"([^"\\]|\\.)*"\b': "YARN Literal",
     r'\b(WIN|FAIL)\b': "TROOF Literal",
-    r'\b(NUMBR|NUMBAR|YARN|TROOF)\b': "TYPE Literal",
+    r'\b(NUMBR|NUMBAR|YARN|TROOF|NOOB)\b': "TYPE Literal",
     r'\bHAI\b': "HAI Keyword",
     r'\bKTHXBYE\b': "KTHXBYE Keyword",
     r'\bWAZZUP\b': "WAZZUP Keyword",
@@ -238,8 +238,8 @@ class InterpreterApp:
         for current in validNonIdentifier:
             nonIdentifierLexemes = nonIdentifierLexemes + re.findall(current, lolcode)
             lolcode = re.sub(current, " ", lolcode)
-        indentifierLexemes = re.findall(validIdentifier, lolcode)    
-
+        indentifierLexemes = re.findall(validIdentifier, lolcode)
+        
         indentifierLexemes = list(set(indentifierLexemes)-set(nonIdentifierLexemes))
         return indentifierLexemes
 
@@ -251,9 +251,8 @@ class InterpreterApp:
         for current in validRegex:
             lexemes = re.findall(current, lolcode)
             lolcode = re.sub(current, " ", lolcode)
-            print(lolcode)
             
-            for currentLexeme in lexemes[:-1]:
+            for currentLexeme in lexemes:
                 symbolTable[currentLexeme] = [regexDictionary[current], None]
                 lexemeDictionary[currentLexeme] = current
         
@@ -263,12 +262,6 @@ class InterpreterApp:
             
         return symbolTable
     
-    def insertSymbolTable(self, tokens):
-        for lexeme in symbolTable.keys():
-            self.lexemes.insert('', tk.END, values=(lexeme, symbolTable[lexeme][0]))
-            if(symbolTable[lexeme][0] == "Identifier"):
-                self.symbols.insert('', tk.END, values=(lexeme, symbolTable[lexeme][1]))
-
     def insertSymbolTable(self, tokens):
         for lexeme in symbolTable.keys():
             self.lexemes.insert('', tk.END, values=(lexeme, symbolTable[lexeme][0]))
