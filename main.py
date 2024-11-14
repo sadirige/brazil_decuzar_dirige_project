@@ -8,6 +8,10 @@ References:
         https://ultrapythonic.com/tkinter-panedwindow/
 4. Adding hover effect on buttons
         https://www.geeksforgeeks.org/tkinter-button-that-changes-its-properties-on-hover/
+5. Initializing root window to maximized state
+        https://blog.finxter.com/5-best-ways-to-initialize-a-window-as-maximized-in-tkinter-python/
+   Use of try except for different ways to maximize root window since some methods work on other devices while others can't
+        https://stackoverflow.com/questions/15981000/tkinter-python-maximize-window
 '''
 import tkinter as tk
 from tkinter import filedialog, ttk, PanedWindow
@@ -85,6 +89,14 @@ class InterpreterApp:
         self.root = root
         self.root.title("Team (ﾉ◕ヮ◕)ﾉ*:･ﾟ LOLTERPRETER")
         self.create_widgets()
+
+        # Initialize window in maximized state
+        self.root.update_idletasks()
+        try:
+            self.root.wm_attributes('-zoomed', True) # Works for Ubuntu and others, not Arch
+        except:
+            self.root.state('zoomed') # Works for Windows and others, not Ubuntu
+
         self.root.after(100, self.initialize_parts_sashpos)  # Update sash position after main loop starts
 
     # -----------------------------------------------------------------------------------------
@@ -185,7 +197,6 @@ class InterpreterApp:
     # -----------------------------------------------------------------------------------------
     def initialize_parts_sashpos(self):
         #Divide upper and lower half of GUI into 2 equal parts, set sash position to 1/2 of root window height
-        self.root.update_idletasks()
         height = self.root.winfo_height()
         self.vertical_pw.sash_place(0, 0, height // 2)
 
@@ -269,7 +280,6 @@ class InterpreterApp:
                 self.symbols.insert('', tk.END, values=(lexeme, symbolTable[lexeme][1]))
             
 
-# Create and start the app in maximized state
 root = tk.Tk()
 app = InterpreterApp(root)
 root.mainloop()
