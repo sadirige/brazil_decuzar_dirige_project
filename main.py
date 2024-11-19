@@ -88,6 +88,8 @@ class InterpreterApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Team (ﾉ◕ヮ◕)ﾉ*:･ﾟ LOLTERPRETER")
+        self.current_file = None
+
         self.create_widgets()
 
         # Initialize window in maximized state
@@ -211,6 +213,7 @@ class InterpreterApp:
     def select_file(self):
         file_path = filedialog.askopenfilename(filetypes=[("LOL CODE files", "*.lol")])
         if file_path and file_path.endswith(".lol"):
+            self.current_file = file_path
             file_name = file_path.split("/")[-1]
             self.file_name.config(text=file_name) #Update (None) to the selected file name
         else:
@@ -237,6 +240,10 @@ class InterpreterApp:
 
         # Get the lolcode from the text editor and split into lines (this ensures that the tokens are done per line)
         lolcode = self.text_editor.get("1.0", tk.END).strip().split('\n')
+
+        # Save the current code in the text editor to the actual .lol file
+        with open(self.current_file, "w") as file:
+            file.write("\n".join(lolcode))
 
         # 1. Tokenize each line in lolcode and display in the list of tokens (lexemes) - LEXICAL ANALYSIS
         for line in lolcode:
