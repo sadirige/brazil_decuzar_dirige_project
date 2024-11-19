@@ -26,15 +26,15 @@ regexDictionary = {
     r'\b-?[0-9]+\.[0-9]+\b': "NUMBAR Literal",
     r'\b(WIN|FAIL)\b': "TROOF Literal",
     r'\b(NUMBR|NUMBAR|YARN|TROOF|NOOB)\b': "TYPE Literal",
-    r'\bHAI\b': "HAI Keyword",
-    r'\bKTHXBYE\b': "KTHXBYE Keyword",
-    r'\bWAZZUP\b': "WAZZUP Keyword",
-    r'\bBUHBYE\b': "BUHBYE Keyword",
-    r'\bBTW\b': "BTW Keyword",
-    r'\bOBTW\b': "OBTW Keyword",
-    r'\bTLDR\b': "TLDR Keyword",
-    r'\bI HAS A\b': "I HAS A Keyword",
-    r'\bITZ\b': "ITZ Keyword",
+    r'\bHAI\b': "Code Delimiter",
+    r'\bKTHXBYE\b': "Code Delimiter",
+    r'\bWAZZUP\b': "Variable Delimiter",
+    r'\bBUHBYE\b': "Variable Delimiter",
+    r'\bBTW.*\b': "Comment",
+    r'\bOBTW\b': "Multi-line Comment Delimiter",
+    r'\bTLDR\b': "Multi-line Comment Delimiter",
+    r'\bI HAS A\b': "Variable Declaration",
+    r'\bITZ\b': "Variable Assignment",
     r'\bR\b': "R Keyword",
     r'\bSUM OF\b': "SUM OF Keyword",
     r'\bDIFF OF\b': "DIFF OF Keyword",
@@ -55,7 +55,7 @@ regexDictionary = {
     r'\bMAEK\b': "MAEK Keyword",
     r'\bA\b': "A Keyword",
     r'\bIS NOW A\b': "IS NOW A Keyword",
-    r'\bVISIBLE\b': "VISIBLE Keyword",
+    r'\bVISIBLE\b': "Output Keyword",
     r'\bGIMMEH\b': "GIMMEH Keyword",
     r'\bO RLY\?\b': "O RLY? Keyword",
     r'\bYA RLY\b': "YA RLY Keyword",
@@ -81,7 +81,7 @@ regexDictionary = {
   
     r'\bAN\b': "AN Keyword",
   
-    r'\b[a-zA-Z][a-zA-Z0-9_]*\b': "Identifier"
+    r'\b[a-zA-Z][a-zA-Z0-9_]*\b': "Variable Identifier"
 }
 
 class InterpreterApp:
@@ -225,20 +225,45 @@ class InterpreterApp:
 
     # -----------------------------------------------------------------------------------------
     # Execute the code from the text editor after pressing the execute button
+    #   (3) List of Tokens – This should be updated every time the Execute/Run button (5) is pressed.
+    #   (4) Symbol Table – This should be updated every time the Execute/Run button (5) is pressed. 
     # -----------------------------------------------------------------------------------------
     def execute_code(self):
-        #(3) List of Tokens – This should be updated every time the Execute/Run button (5) is pressed.
-        #TODO: 1. Tokenize the contents and display in the list of tokens (lexemes) - LEXICAL ANALYSIS
-        lolcode = self.text_editor.get("1.0", tk.END)
-        
-        tokens = self.getSymbolTable(lolcode)
-        
-        self.insertSymbolTable(tokens)
-        
-        #(4) Symbol Table – This should be updated every time the Execute/Run button (5) is pressed. 
-        #TODO: 2. Convert tokens to symbol table - SYNTAX ANALYSIS
+        # Clear previous tokens and symbols
+        for item in self.lexemes.get_children():
+            self.lexemes.delete(item)
+        for item in self.symbols.get_children():
+            self.symbols.delete(item)
 
-        pass
+        # Get the lolcode from the text editor and split into lines (this ensures that the tokens are done per line)
+        lolcode = self.text_editor.get("1.0", tk.END).strip().split('\n')
+
+        # 1. Tokenize each line in lolcode and display in the list of tokens (lexemes) - LEXICAL ANALYSIS
+        for line in lolcode:
+            tokens = self.tokenize_line(line)
+            self.insert_tokens(tokens)
+
+    def tokenize_line(self, line):
+        tokens = []
+        for regex, token_type in regexDictionary.items():
+            matches = re.finditer(regex, line)
+            for match in matches:
+                lexeme = match.group(0)
+                if(token_type == "YARN Literal"):
+                    tokens.append((lexeme[0], "String Delimiter"))
+                    tokens.append((lexeme[1:-1], token_type))
+                    tokens.append((lexeme[-1], "String Delimiter"))
+                else:
+                    tokens.append((lexeme, token_type))
+                line = line.replace(lexeme, ' ', 1)  # Replace first occurrence, ensuring a single match of a regex will not match with other ones again
+        return tokens
+
+    def insert_tokens(self, tokens):
+        for lexeme, token_type in tokens:
+            self.lexemes.insert('', tk.END, values=(lexeme, token_type))
+            if token_type == "Variable Identifier":
+                self.symbols.insert('', tk.END, values=(lexeme, None))
+
     
     def getIdentifier(self, lolcode):
         nonIdentifierLexemes = []
