@@ -242,17 +242,17 @@ class InterpreterApp:
     
     def getIdentifier(self, lolcode):
         nonIdentifierLexemes = []
-        indentifierLexemes = []
+        identifierLexemes = []
         validNonIdentifier = list(regexDictionary.keys())[0:-1]
         validIdentifier = list(regexDictionary.keys())[-1]
     
         for current in validNonIdentifier:
             nonIdentifierLexemes = nonIdentifierLexemes + re.findall(current, lolcode)
             lolcode = re.sub(current, " ", lolcode)
-        indentifierLexemes = re.findall(validIdentifier, lolcode)
+        identifierLexemes = re.findall(validIdentifier, lolcode)
         
-        indentifierLexemes = list(set(indentifierLexemes)-set(nonIdentifierLexemes))
-        return indentifierLexemes
+        identifierLexemes = list(set(identifierLexemes)-set(nonIdentifierLexemes))
+        return identifierLexemes
 
     def getSymbolTable(self, lolcode):
         dupliCode = lolcode
