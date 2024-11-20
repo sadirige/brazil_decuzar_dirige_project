@@ -12,6 +12,8 @@ References:
         https://blog.finxter.com/5-best-ways-to-initialize-a-window-as-maximized-in-tkinter-python/
    Use of try except for different ways to maximize root window since some methods work on other devices while others can't
         https://stackoverflow.com/questions/15981000/tkinter-python-maximize-window
+6. Add line numbers beside Text Editor for better UX
+        https://stackoverflow.com/questions/16369470/tkinter-adding-line-number-to-text-widget
 '''
 import tkinter as tk
 from tkinter import filedialog, ttk, PanedWindow
@@ -21,32 +23,32 @@ symbolTable ={}
 lexemeDictionary ={}
 
 regexDictionary = {
-    r'[\"][^\"]*[\"]': "YARN Literal",
-    r'\b-?[0-9]+\b': "NUMBR Literal",
-    r'\b-?[0-9]+\.[0-9]+\b': "NUMBAR Literal",
-    r'\b(WIN|FAIL)\b': "TROOF Literal",
+    r'[\"][^\"]*[\"]': "String Literal",
+    r'\b-?[0-9]+\.[0-9]+\b': "Float Literal",
+    r'\b-?[0-9]+\b': "Integer Literal",
+    r'\b(WIN|FAIL)\b': "Boolean Literal",
     r'\b(NUMBR|NUMBAR|YARN|TROOF|NOOB)\b': "TYPE Literal",
     r'\bHAI\b': "Code Delimiter",
     r'\bKTHXBYE\b': "Code Delimiter",
     r'\bWAZZUP\b': "Variable Delimiter",
     r'\bBUHBYE\b': "Variable Delimiter",
-    r'\bBTW.*\b': "Comment",
-    r'\bOBTW\b': "Multi-line Comment Delimiter",
+    r'\bBTW\b': "Comment",
+    r'\bmultiline_comment\b': "Multi-line Comment Delimiter",
     r'\bTLDR\b': "Multi-line Comment Delimiter",
     r'\bI HAS A\b': "Variable Declaration",
     r'\bITZ\b': "Variable Assignment",
     r'\bR\b': "R Keyword",
-    r'\bSUM OF\b': "SUM OF Keyword",
-    r'\bDIFF OF\b': "DIFF OF Keyword",
-    r'\bPRODUKT OF\b': "PRODUKT OF Keyword",
-    r'\bQUOSHUNT OF\b': "QUOSHUNT OF Keyword",
-    r'\bMOD OF\b': "MOD OF Keyword",
-    r'\bBIGGR OF\b': "BIGGR OF Keyword",
-    r'\bSMALLR OF\b': "SMALLR OF Keyword",
-    r'\bBOTH OF\b': "BOTH OF Keyword",
-    r'\bEITHER OF\b': "EITHER OF Keyword",
-    r'\bWON OF\b': "WON OF Keyword",
-    r'\bNOT\b': "NOT Keyword",
+    r'\bSUM OF\b': "Add",
+    r'\bDIFF OF\b': "Subtract",
+    r'\bPRODUKT OF\b': "Multiply",
+    r'\bQUOSHUNT OF\b': "Divide",
+    r'\bMOD OF\b': "Modulo",
+    r'\bBIGGR OF\b': "Max",
+    r'\bSMALLR OF\b': "Min",
+    r'\bBOTH OF\b': "And",
+    r'\bEITHER OF\b': "Or",
+    r'\bWON OF\b': "Xor",
+    r'\bNOT\b': "Not",
     r'\bANY OF\b': "ANY OF Keyword",
     r'\bALL OF\b': "ALL OF Keyword",
     r'\bBOTH SAEM\b': "BOTH SAEM Keyword",
@@ -78,9 +80,7 @@ regexDictionary = {
     r'\bFOUND YR\b': "FOUND YR Keyword",
     r'\bI IZ\b': "I IZ Keyword",
     r'\bMKAY\b': "MKAY Keyword",
-  
     r'\bAN\b': "AN Keyword",
-  
     r'\b[a-zA-Z][a-zA-Z0-9_]*\b': "Variable Identifier"
 }
 
@@ -134,9 +134,18 @@ class InterpreterApp:
         
         #(2) Text editor - Allows you to view the code you want to run. The text editor should be editable, and edits done should be reflected once the code is run.
         text_editor_part = tk.Frame(self.horizontal_pw)
-        self.text_editor = tk.Text(text_editor_part, height=10, wrap="word") #Allow user to type and edit lol code
-        self.text_editor.pack(fill=tk.BOTH, expand=True)
-        self.horizontal_pw.add(text_editor_part) #Add to horizontal paned window
+        self.line_numbers = tk.Text(text_editor_part, width=4, padx=5, border=0, background="lightgray", state="disabled", wrap="none")
+        self.line_numbers.pack(side="left", fill="y")
+        self.text_editor = tk.Text(text_editor_part, wrap="none", undo=True)
+        self.text_editor.pack(side="right", fill="both", expand=True)
+
+        #Bind events to update line numbers counting the lines in the text editor
+        self.text_editor.bind("<KeyRelease>", self.update_line_numbers)
+        self.text_editor.bind("<MouseWheel>", self.update_line_numbers)
+        self.text_editor.bind("<ButtonRelease-1>", self.update_line_numbers)
+        
+        self.update_line_numbers() # Initialize line numbers
+        self.horizontal_pw.add(text_editor_part) #Add text editor to the horizontal paned window so it can be resized left and right later on
 
         #(3) List of Tokens - This should be updated every time the Execute/Run button (5) is pressed. This should contain all the lexemes detected from the code being ran, and their classification.
         tokens_list_part = tk.Frame(self.horizontal_pw)
@@ -185,6 +194,20 @@ class InterpreterApp:
         self.root.grid_rowconfigure(2, weight=1)
 
     # -----------------------------------------------------------------------------------------
+    # Adds line numbers beside each line of lolcode in the text editor part
+    # -----------------------------------------------------------------------------------------
+    def update_line_numbers(self):
+        #count total number of lines from the text editor
+        total_lines = int(self.text_editor.index("end-1c").split(".")[0])
+        line_numbers = "\n".join(str(i) for i in range(1, total_lines + 1))
+
+        #update the text widget for the line numbers (that is beside the text editor)
+        self.line_numbers.config(state="normal")
+        self.line_numbers.delete(1.0, "end")
+        self.line_numbers.insert(1.0, line_numbers)
+        self.line_numbers.config(state="disabled")
+
+    # -----------------------------------------------------------------------------------------
     # Adds hover effect on buttons
     # -----------------------------------------------------------------------------------------
     def change_on_hover(self, button):
@@ -226,50 +249,121 @@ class InterpreterApp:
             self.text_editor.delete(1.0, tk.END)
             self.text_editor.insert(tk.END, lolcode)
 
+        #Update line numbers in text editor
+        self.update_line_numbers()
+
     # -----------------------------------------------------------------------------------------
     # Execute the code from the text editor after pressing the execute button
     #   (3) List of Tokens – This should be updated every time the Execute/Run button (5) is pressed.
     #   (4) Symbol Table – This should be updated every time the Execute/Run button (5) is pressed. 
     # -----------------------------------------------------------------------------------------
     def execute_code(self):
-        # Clear previous tokens and symbols
+        #Clear previous lexemes and symbols
         for item in self.lexemes.get_children():
             self.lexemes.delete(item)
         for item in self.symbols.get_children():
             self.symbols.delete(item)
 
-        # Get the lolcode from the text editor and split into lines (this ensures that the tokens are done per line)
-        lolcode = self.text_editor.get("1.0", tk.END).strip().split('\n')
+        #Get a copy of the lolcode from the text editor
+        lolcode = self.text_editor.get("1.0", tk.END).splitlines()
 
-        # Save the current code in the text editor to the actual .lol file
-        with open(self.current_file, "w") as file:
-            file.write("\n".join(lolcode))
+        #Save the current code in the text editor to the actual .lol file
+        if(self.current_file is not None):
+            with open(self.current_file, "w") as file:
+                file.write("\n".join(lolcode))
 
-        # 1. Tokenize each line in lolcode and display in the list of tokens (lexemes) - LEXICAL ANALYSIS
-        for line in lolcode:
-            tokens = self.tokenize_line(line)
-            self.insert_tokens(tokens)
+        #1. Tokenize each line in lolcode and display in the list of tokens (lexemes) - LEXICAL ANALYSIS
+        lexemes = self.lexer(lolcode)
+        self.display_lexemes(lexemes)
 
-    def tokenize_line(self, line):
+        #2. Convert tokens to symbol table - SYNTAX ANALYSIS
+        
+
+    def lexer(self, lolcode):
         tokens = []
-        for regex, token_type in regexDictionary.items():
-            matches = re.finditer(regex, line)
-            for match in matches:
-                lexeme = match.group(0)
-                if(token_type == "YARN Literal"):
-                    tokens.append((lexeme[0], "String Delimiter"))
-                    tokens.append((lexeme[1:-1], token_type))
-                    tokens.append((lexeme[-1], "String Delimiter"))
-                else:
-                    tokens.append((lexeme, token_type))
-                line = line.replace(lexeme, ' ', 1)  # Replace first occurrence, ensuring a single match of a regex will not match with other ones again
+        line_number = 1
+        multiline_comment = False
+
+        for line in lolcode: 
+            line = line.strip()
+            match_found = False
+
+            while line:
+                i = 0
+                #iterate through each regex to check if certain sequence of characters in line match them
+                while i < len(regexDictionary.items()):
+                    regex, classification = list(regexDictionary.items())[i]
+                    match = re.match(regex, line)      
+                    if match:
+                        i = 0  #once there's a match, reset i so the next sequence of characters will be checked from start to finish of the regexDictionary
+                        match_found = True
+                        lexeme = match.group(0)
+
+                        #once OBTW is found, set multiline comment flag to true, then ignore the rest of the line (characters after OBTW)
+                        #add OBTW to tokens, it won't be shown in the Lexemes part of the GUI but it's necessary for the syntax analysis
+                        if multiline_comment == False and lexeme == "OBTW":
+                            multiline_comment = True
+                            tokens.append((lexeme, classification, line_number))
+                            line = ""
+                            break
+
+                        #if multiline comment flag is true, ignore line since it means it's between OBTW and TLDR
+                        elif multiline_comment:
+                            line = ""
+                            break
+
+                        #if TLDR is found in line, just set flag of multiline comment to false and continue to check if there are other lexemes in the same line as TLDR
+                        #this is not allowed based on the project specs, but it's not the job of the lexical analyzer to check this, it's the syntax analyzer's
+                        elif lexeme == "TLDR":
+                            multiline_comment = False
+
+                        #single line comment, ignore additional characters after BTW
+                        elif lexeme == "BTW":
+                            tokens.append((lexeme, classification, line_number))
+                            line = ""
+                            break
+                        
+                        #if a string literal was matched, break it down into delimiters (quotation symbols) and the actual string value
+                        elif classification == "String Literal":
+                            tokens.append((lexeme[0], "String Delimiter", line_number))
+                            tokens.append((lexeme[1:-1], classification, line_number))
+                            tokens.append((lexeme[-1], "String Delimiter", line_number))
+
+                        #other regex matches can just be added to tokens without additional instructions
+                        else:
+                            tokens.append((lexeme, classification, line_number))
+
+                        line = line[len(lexeme):].strip() #remove parts of the line that have already been matched
+
+                    i += 1 #move to the next regex and check if it matches what's on the line
+
+                #Check if there are any unrecognized parts left in the line after iterating through all regex
+                if not match_found:
+                    error_message = "Unrecognized token \"" + line.strip() + "\" at line " + str(line_number) + "."
+                    tk.messagebox.showerror("Lexical Error", error_message)
+                    # print(line.strip())
+                    tokens.clear()
+                    return tokens
+                
+                match_found = False
+
+            #Add newline after every line, this won't be shown in the Lexemes part, but it will be used for Syntax Analysis
+            tokens.append(("\n", "Newline", line_number))
+            line_number += 1
+        
         return tokens
 
-    def insert_tokens(self, tokens):
-        for lexeme, token_type in tokens:
-            self.lexemes.insert('', tk.END, values=(lexeme, token_type))
-            if token_type == "Variable Identifier":
-                self.symbols.insert('', tk.END, values=(lexeme, None))
+    def display_lexemes(self, lexemes):
+        for lexeme, classification, line_number in lexemes:
+            if lexeme == "\n" and classification == "Newline":
+                continue
+            elif lexeme == "BTW" or lexeme == "OBTW" or lexeme == "TLDR":
+                continue
+            else:
+                #ignore newline and comments, only show the other more important lexemes
+                self.lexemes.insert('', tk.END, values=(lexeme, classification))
+                if classification == "Variable Identifier":
+                    self.symbols.insert('', tk.END, values=(lexeme, None))
 
     
     def getIdentifier(self, lolcode):
