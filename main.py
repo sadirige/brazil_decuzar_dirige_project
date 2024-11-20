@@ -196,7 +196,7 @@ class InterpreterApp:
     # -----------------------------------------------------------------------------------------
     # Adds line numbers beside each line of lolcode in the text editor part
     # -----------------------------------------------------------------------------------------
-    def update_line_numbers(self):
+    def update_line_numbers(self, event=None):
         #count total number of lines from the text editor
         total_lines = int(self.text_editor.index("end-1c").split(".")[0])
         line_numbers = "\n".join(str(i) for i in range(1, total_lines + 1))
@@ -212,10 +212,10 @@ class InterpreterApp:
     # -----------------------------------------------------------------------------------------
     def change_on_hover(self, button):
         #change to darker color when arrow is on button
-        button.bind("<Enter>", lambda e: button.config(bg="darkgray"))
+        button.bind("<Enter>", lambda _: button.config(bg="darkgray"))
         
         #go back to usual color of tkinter button when arrow is not on button
-        button.bind("<Leave>", lambda e: button.config(bg="SystemButtonFace"))
+        button.bind("<Leave>", lambda _: button.config(bg="SystemButtonFace"))
 
     # -----------------------------------------------------------------------------------------
     # Initializes the parts of the GUI at the start of program (50-50 vertical, 33-33-33 horizontal) paned windows
@@ -274,6 +274,7 @@ class InterpreterApp:
 
         #1. Tokenize each line in lolcode and display in the list of tokens (lexemes) - LEXICAL ANALYSIS
         lexemes = self.lexer(lolcode)
+        print(lexemes)
         self.display_lexemes(lexemes)
 
         #2. Convert tokens to symbol table - SYNTAX ANALYSIS
@@ -299,11 +300,17 @@ class InterpreterApp:
                         match_found = True
                         lexeme = match.group(0)
 
+                        #if TLDR is found in line, just set flag of multiline comment to false and continue to check if there are other lexemes in the same line as TLDR
+                        #this is not allowed based on the project specs, but it's not the job of the lexical analyzer to check this, it's the syntax analyzer's
+                        if lexeme == "TLDR":
+                            tokens.append((lexeme, classification, line_number))
+                            multiline_comment = False
+                        
                         #once OBTW is found, set multiline comment flag to true, then ignore the rest of the line (characters after OBTW)
                         #add OBTW to tokens, it won't be shown in the Lexemes part of the GUI but it's necessary for the syntax analysis
-                        if multiline_comment == False and lexeme == "OBTW":
-                            multiline_comment = True
+                        elif multiline_comment == False and lexeme == "OBTW":
                             tokens.append((lexeme, classification, line_number))
+                            multiline_comment = True
                             line = ""
                             break
 
@@ -311,11 +318,6 @@ class InterpreterApp:
                         elif multiline_comment:
                             line = ""
                             break
-
-                        #if TLDR is found in line, just set flag of multiline comment to false and continue to check if there are other lexemes in the same line as TLDR
-                        #this is not allowed based on the project specs, but it's not the job of the lexical analyzer to check this, it's the syntax analyzer's
-                        elif lexeme == "TLDR":
-                            multiline_comment = False
 
                         #single line comment, ignore additional characters after BTW
                         elif lexeme == "BTW":
@@ -354,7 +356,7 @@ class InterpreterApp:
         return tokens
 
     def display_lexemes(self, lexemes):
-        for lexeme, classification, line_number in lexemes:
+        for lexeme, classification, _ in lexemes:
             if lexeme == "\n" and classification == "Newline":
                 continue
             elif lexeme == "BTW" or lexeme == "OBTW" or lexeme == "TLDR":
