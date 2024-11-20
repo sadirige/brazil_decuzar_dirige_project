@@ -13,12 +13,12 @@ import tkinter as tk
 from tkinter import filedialog, ttk, PanedWindow
 import re
 
-symbolTable ={}
-lexemeDictionary ={}
+symbolTable = {}
+lexemeDictionary = []
 
 regexDictionary = {
-    r'\b-?[0-9]+\b': "NUMBR Literal",
     r'\b-?[0-9]+\.[0-9]+\b': "NUMBAR Literal",
+    r'\b-?[0-9]+\b': "NUMBR Literal",
     r'\b"([^"\\]|\\.)*"\b': "YARN Literal",
     r'\b(WIN|FAIL)\b': "TROOF Literal",
     r'\b(NUMBR|NUMBAR|YARN|TROOF)\b': "TYPE Literal",
@@ -29,7 +29,7 @@ regexDictionary = {
     r'\bBTW\b': "BTW Keyword",
     r'\bOBTW\b': "OBTW Keyword",
     r'\bTLDR\b': "TLDR Keyword",
-    r'\bI HAS A\b': "I HAS A Keyword",
+    'I HAS A': "I HAS A Keyword",
     r'\bITZ\b': "ITZ Keyword",
     r'\bR\b': "R Keyword",
     r'\bSUM OF\b': "SUM OF Keyword",
@@ -178,7 +178,8 @@ class InterpreterApp:
         button.bind("<Enter>", lambda e: button.config(bg="darkgray"))
         
         #go back to usual color of tkinter button when arrow is not on button
-        button.bind("<Leave>", lambda e: button.config(bg="SystemButtonFace"))
+        # button.bind("<Leave>", lambda e: button.config(bg="SystemButtonFace"))
+        button.bind("<Leave>", lambda e: button.config(bg="gray"))
 
     # -----------------------------------------------------------------------------------------
     # Initializes the parts of the GUI at the start of program (50-50 vertical, 33-33-33 horizontal) paned windows
@@ -223,12 +224,33 @@ class InterpreterApp:
         tokens = self.getSymbolTable(lolcode)
         
         self.insertSymbolTable(tokens)
-        
+                
         #(4) Symbol Table – This should be updated every time the Execute/Run button (5) is pressed. 
         #TODO: 2. Convert tokens to symbol table - SYNTAX ANALYSIS
 
+        # self.checkSyntax(tokens)
+
         pass
     
+    def checkSyntax(self, tokens):
+        checkTokenSyntax = []
+
+        # create duplicate of tokens
+        for i in tokens:
+            checkTokenSyntax.append(i)
+
+        print(tokens)
+        while(True):
+            flag = False
+            index = 0
+            literal = ["Identifier"]
+
+            if(i[1] == "VISIBLE Keyword" and (index+1) < len(checkTokenSyntax)):
+                if(checkTokenSyntax[index+1] in literal):
+                    del checkTokenSyntax[index:(index+1)]
+                    break
+        # print(checkTokenSyntax)
+
     def getIdentifier(self, lolcode):
         nonIdentifierLexemes = []
         indentifierLexemes = []
@@ -244,25 +266,60 @@ class InterpreterApp:
         return indentifierLexemes
 
     def getSymbolTable(self, lolcode):
-        dupliCode = lolcode
-        validRegex = list(regexDictionary.keys())
-        identifier = validRegex[-1]
-        
-        for current in validRegex:
-            lexemes = re.findall(current, lolcode)
-            lolcode = re.sub(current, " ", lolcode)
-            print(lolcode)
-            
-            for currentLexeme in lexemes[:-1]:
-                symbolTable[currentLexeme] = [regexDictionary[current], None]
-                lexemeDictionary[currentLexeme] = current
-        
-        for current in self.getIdentifier(dupliCode):
-            symbolTable[current] = [regexDictionary[identifier], None]
-            lexemeDictionary[current] = "Identifier"
-            
-        return symbolTable    
+        global lexemeDictionary
 
+        # clean lolcode program
+        adjustedLolcode = []
+        splitLine = lolcode.split("\n")
+        for line in splitLine:
+            if (line != ""):
+                adjustedLolcode.append(line.strip())
+  
+        # get lexemes
+        for i in range(0, len(adjustedLolcode)):
+            flag = False
+            if(adjustedLolcode[i] == ''):
+                flag = True
+
+            while(adjustedLolcode[i] !=''):
+                self.getLexeme(adjustedLolcode, adjustedLolcode[i], i)
+            if (flag == False):
+                lexemeDictionary.append(["\n","Linebreak"])
+        # bug fix note: loops with decimals
+
+        self.printLexeme()
+
+        return symbolTable
+    
+    def printLexeme(self):
+        global lexemeDictionary
+        for i in lexemeDictionary:
+            print(i)
+
+    def getLexeme(self, adjustedLolCodeArr, checkLine, index):
+        global lexemeDictionary
+        validRegex = list(regexDictionary.keys())
+
+        for currentRegex in validRegex:
+            # match regex to checkLine
+            # print(checkLine + "#---#"+currentRegex)
+            lexeme = re.match(currentRegex, checkLine)
+            if lexeme:
+                # create temp lexeme
+                tempLex = []
+                tempLex.append(lexeme.group(0))
+                tempLex.append(regexDictionary[currentRegex])
+
+                # add to lexemeDictionary
+                lexemeDictionary.append(tempLex)
+
+                # update line
+                lenLine = len(lexeme.group(0))
+                newLine = checkLine[lenLine:len(checkLine)].strip()
+                adjustedLolCodeArr[index] = newLine
+
+                break
+               
     def insertSymbolTable(self, tokens):
         for lexeme in symbolTable.keys():
             self.lexemes.insert('', tk.END, values=(lexeme, symbolTable[lexeme][0]))
