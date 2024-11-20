@@ -278,7 +278,9 @@ class InterpreterApp:
         self.display_lexemes(lexemes)
 
         #2. Convert tokens to symbol table - SYNTAX ANALYSIS
-        
+        self.checkSyntax(lexemes)
+        symbolTable = self.get_var_assignments(lexemes)
+        self.display_symbol(symbolTable)
 
     def lexer(self, lolcode):
         tokens = []
@@ -364,9 +366,156 @@ class InterpreterApp:
             else:
                 #ignore newline and comments, only show the other more important lexemes
                 self.lexemes.insert('', tk.END, values=(lexeme, classification))
-                if classification == "Variable Identifier":
-                    self.symbols.insert('', tk.END, values=(lexeme, None))
+                
+    def checkSyntax(self, lexemes):
+        dupeLexeme = list(lexemes)
+        index = 0
 
+        literals = ["String Literal", "Float Literal", "Integer Literal", "Boolean Literal"]
+        operands = ["varident", "literal"]
+        mathoperator = ["Add", "Subtract", "Multiply", "Divide", "Mod", "Max", "Min"]
+
+        while (True):
+            for i in dupeLexeme:
+                flag = False 
+                index = dupeLexeme.index(i)
+
+                # -------------- Simplify tokens
+                # Literals
+                if (i[1] in ["String Literal", "Float Literal", "Integer Literal", "Boolean Literal"]):
+                    del dupeLexeme[index]
+                    dupeLexeme.insert(index, "literal")
+                    flag = True
+
+                elif(i[1] == "String Delimiter"):
+                    if(dupeLexeme[index+1]=="literal" and dupeLexeme[index+2][1]=="String Delimiter"):
+                        del dupeLexeme[index:(index+3)]
+                        dupeLexeme.insert(index, "literal")
+                        flag = True
+                
+                # Variable Identifier
+                elif (i[1] == "Variable Identifier"):
+                    del dupeLexeme[index]
+                    dupeLexeme.insert(index, "varident")
+                    flag = True
+
+                # Variable Declaration
+                elif (i[1] == "Variable Declaration"):
+                    if(dupeLexeme[index+1]=="varident" and dupeLexeme[index+2][1]=="Variable Assignment" and dupeLexeme[index+3] in operands):
+                        del dupeLexeme[index:(index+4)]
+                        dupeLexeme.insert(index, "vardef")
+                        flag = True
+                    elif(dupeLexeme[index+1]=="varident" and dupeLexeme[index+2]=="expr"):
+                        del dupeLexeme[index:(index+3)]
+                        dupeLexeme.insert(index, "vardef")
+                        flag = True
+                    elif(dupeLexeme[index+1]=="varident"):
+                        del dupeLexeme[index:(index+2)]
+                        dupeLexeme.insert(index, "vardef")
+                        flag = True                  
+
+                # Print
+                if (i[1] == "VISIBLE Keyword"):
+                    if(dupeLexeme[index+1] in operands or 
+                       dupeLexeme[index+1] == "expr"):
+                        del dupeLexeme[index:index+1]
+                        dupeLexeme.insert(index, "print")
+
+                # Scan
+                elif (i[1] == "GIMMEH Keyword"):
+                    if(dupeLexeme[index+1]=="varident"):
+                        del dupeLexeme[index:(index+1)]
+                        dupeLexeme.insert(index, "scan")
+                        flag = True
+
+                # Expr: Math
+                elif (i[1] in mathoperator):
+                    if (dupeLexeme[index+1] in operands and dupeLexeme[index+2][1]=="AN Keyword" and dupeLexeme[index+3] in operands):
+                        del dupeLexeme[index:index+3]
+                        dupeLexeme.insert(index, "expr")
+                        flag = True
+
+                # Typecast
+                elif (i[1] == "MAEK Keyword"):
+                    if(dupeLexeme[index+1]=="varident" and dupeLexeme[index+2]=="TYPE Literal"):
+                        del dupeLexeme[index:index+2]
+                        dupeLexeme.insert(index,"typecast")
+                        flag = True
+
+                # Comment
+                elif (i[1] == "Comment"):
+                    del dupeLexeme[index]
+                    flag = True
+
+                # Linebreak
+                elif (i[1] == "Newline"):
+                    del dupeLexeme[index]
+                    dupeLexeme.insert(index,"linebreak")
+                    flag = True
+                elif (i == "linebreak"):
+                    if(dupeLexeme[index+1]=="linebreak"):                        
+                        del dupeLexeme[index:(index+1)]
+                        dupeLexeme.insert(index,"linebreak")
+                        flag = True
+            if (flag == False):
+                break
+            
+        while(True):
+            for i in dupeLexeme:
+                flag = False 
+                index = dupeLexeme.index(i)
+                # Statement
+                if (i in ["print", "vardef", "scan"]):
+                    del dupeLexeme[index:(index+1)]
+                    dupeLexeme.insert(index, "statement")
+                    flag = True
+                elif (i == "statement"):
+                    if(dupeLexeme[index+1]=="linebreak" and dupeLexeme[index+2]=="statement"):
+                        del dupeLexeme[index:(index+3)]
+                        dupeLexeme.insert(index, "statement")
+                        flag = True
+
+            # Program Body
+            # if (i[1] == "Code Delimiter"):
+            #     if(dupeLexeme[index+1]=="linebreak" and dupeLexeme[index+2]=="statement" and dupeLexeme[index+3]=="linebreak" and dupeLexeme[index+4][1]=="Code Delimiter" and dupeLexeme[index+5]=="statement"):
+            #         del dupeLexeme[index:(index+6)]
+            #         dupeLexeme.insert(index, "program")
+            #         flag = True
+            if (flag == False):
+                break
+
+        for i in dupeLexeme:
+            print(i)
+                    
+    def get_var_assignments(self, lexemes):
+        symbolTable = []
+
+        for i in range(len(lexemes)):
+            if lexemes[i][1] == "Variable Declaration":
+                var_name = lexemes[i+1][0]  # gets the name of the variable
+                    
+                if i+1 < len(lexemes) and lexemes[i+1][1] == "Variable Identifier":     # checks if a valid variable name was declared
+                    if i+2 < len(lexemes) and lexemes[i+2][1] == "Variable Assignment": # checks if there is a value to be assigned
+                        value_token = lexemes[i+3]                                      # gets the value assigned to the variable
+                        if lexemes[i+3][1] == "String Delimiter":
+                            value_token = lexemes[i+4]
+                        
+                        if value_token[1] == "Integer Literal":
+                            symbolTable.append((var_name, int(value_token[0])))         # if the value assigned is an integer
+                        elif value_token[1] == "Float Literal":
+                            symbolTable.append((var_name, float(value_token[0])))       # if the value assigned is a float
+                        elif value_token[1] == "Boolean Literal" or "String Literal":
+                            symbolTable.append((var_name, value_token[0]))              # if the value assigned is of boolean type or string
+                    else:
+                        symbolTable.append((var_name, None))                            # considers explicit value assignment
+                        
+        return symbolTable
+
+    def display_symbol(self, symbolTable):
+        for i in range(len(symbolTable)):
+            token = symbolTable
+            self.symbols.insert('', tk.END, values = (token[i][0], token[i][1]))        # displays the values onto the symbol table
+            
     
     def getIdentifier(self, lolcode):
         nonIdentifierLexemes = []
