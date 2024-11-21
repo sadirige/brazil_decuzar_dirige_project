@@ -27,7 +27,7 @@ regexDictionary = {
     r'\b-?[0-9]+\.[0-9]+\b': "Float Literal",
     r'\b-?[0-9]+\b': "Integer Literal",
     r'\b(WIN|FAIL)\b': "Boolean Literal",
-    r'\b(NUMBR|NUMBAR|YARN|TROOF|NOOB)\b': "TYPE Literal",
+    r'\b(NUMBR|NUMBAR|YARN|TROOF|NOOB)\b': "Type Literal",
     r'\bHAI\b': "Code Delimiter",
     r'\bKTHXBYE\b': "Code Delimiter",
     r'\bWAZZUP\b': "Variable Delimiter",
@@ -37,7 +37,7 @@ regexDictionary = {
     r'\bTLDR\b': "Multi-line Comment Delimiter",
     r'\bI HAS A\b': "Variable Declaration",
     r'\bITZ\b': "Variable Assignment",
-    r'\bR\b': "R Keyword",
+    r'\bR\b': "Variable Reassignment",
     r'\bSUM OF\b': "Add",
     r'\bDIFF OF\b': "Subtract",
     r'\bPRODUKT OF\b': "Multiply",
@@ -49,38 +49,38 @@ regexDictionary = {
     r'\bEITHER OF\b': "Or",
     r'\bWON OF\b': "Xor",
     r'\bNOT\b': "Not",
-    r'\bANY OF\b': "ANY OF Keyword",
-    r'\bALL OF\b': "ALL OF Keyword",
-    r'\bBOTH SAEM\b': "BOTH SAEM Keyword",
-    r'\bDIFFRINT\b': "DIFFRINT Keyword",
-    r'\bSMOOSH\b': "SMOOSH Keyword",
-    r'\bMAEK\b': "MAEK Keyword",
-    r'\bA\b': "A Keyword",
-    r'\bIS NOW A\b': "IS NOW A Keyword",
+    r'\bANY OF\b': "Any",
+    r'\bALL OF\b': "All",
+    r'\bBOTH SAEM\b': "Equal",
+    r'\bDIFFRINT\b': "Not Equal",
+    r'\bSMOOSH\b': "Concatenate",
+    r'\bMAEK\b': "Typecast Declaration",
+    r'\bA\b': "Typecast Assignment",
+    r'\bIS NOW A\b': "Typecast Reassignment",
     r'\bVISIBLE\b': "Output Keyword",
-    r'\bGIMMEH\b': "GIMMEH Keyword",
-    r'\bO RLY\?\b': "O RLY? Keyword",
-    r'\bYA RLY\b': "YA RLY Keyword",
-    r'\bMEBBE\b': "MEBBE Keyword",
-    r'\bNO WAI\b': "NO WAI Keyword",
-    r'\bOIC\b': "OIC Keyword",
-    r'\bWTF\?\b': "WTF? Keyword",
-    r'\bOMG\b': "OMG Keyword",
-    r'\bOMGWTF\b': "OMGWTF Keyword",
-    r'\bIM IN YR\b': "IM IN YR Keyword",
-    r'\bUPPIN\b': "UPPIN Keyword",
-    r'\bNERFIN\b': "NERFIN Keyword",
-    r'\bYR\b': "YR Keyword",
-    r'\bTIL\b': "TIL Keyword",
-    r'\bWILE\b': "WILE Keyword",
-    r'\bIM OUTTA YR\b': "IM OUTTA YR Keyword",
-    r'\bHOW IZ I\b': "HOW IZ I Keyword",
-    r'\bIF U SAY SO\b': "IF U SAY SO Keyword",
-    r'\bGTFO\b': "GTFO Keyword",
-    r'\bFOUND YR\b': "FOUND YR Keyword",
-    r'\bI IZ\b': "I IZ Keyword",
-    r'\bMKAY\b': "MKAY Keyword",
-    r'\bAN\b': "AN Keyword",
+    r'\bGIMMEH\b': "Input Keyword",
+    r'\bO RLY\?\b': "If-Then Delimiter",
+    r'\bYA RLY\b': "If Keyword",
+    r'\bMEBBE\b': "Else If Keyword",
+    r'\bNO WAI\b': "Else Keyword",
+    r'\bOIC\b': "If-Then/Switch-Case Delimiter",
+    r'\bWTF\?\b': "Switch-Case Delimiter",
+    r'\bOMG\b': "Case Keyword",
+    r'\bOMGWTF\b': "Default Keyword",
+    r'\bIM IN YR\b': "Loop Delimiter",
+    r'\bUPPIN\b': "Increment Keyword",
+    r'\bNERFIN\b': "Decrement Keyword",
+    r'\bYR\b': "Variable Call",
+    r'\bTIL\b': "Loop Until",
+    r'\bWILE\b': "Loop While",
+    r'\bIM OUTTA YR\b': "Loop Delimiter",
+    r'\bHOW IZ I\b': "Function Delimiter",
+    r'\bIF U SAY SO\b': "Function Delimiter",
+    r'\bGTFO\b': "Break/Return",
+    r'\bFOUND YR\b': "Return With Value",
+    r'\bI IZ\b': "Function Call Delimiter",
+    r'\bMKAY\b': "Function Call Delimiter",
+    r'\bAN\b': "Another One Keyword",
     r'\b[a-zA-Z][a-zA-Z0-9_]*\b': "Variable Identifier"
 }
 
@@ -422,7 +422,7 @@ class InterpreterApp:
                         dupeLexeme.insert(index, "print")
 
                 # Scan
-                elif (i[1] == "GIMMEH Keyword"):
+                elif (i[1] == "Input Keyword"):
                     if(dupeLexeme[index+1]=="varident"):
                         del dupeLexeme[index:(index+1)]
                         dupeLexeme.insert(index, "scan")
@@ -430,14 +430,14 @@ class InterpreterApp:
 
                 # Expr: Math
                 elif (i[1] in mathoperator):
-                    if (dupeLexeme[index+1] in operands and dupeLexeme[index+2][1]=="AN Keyword" and dupeLexeme[index+3] in operands):
+                    if (dupeLexeme[index+1] in operands and dupeLexeme[index+2][1]=="Another One Keyword" and dupeLexeme[index+3] in operands):
                         del dupeLexeme[index:index+3]
                         dupeLexeme.insert(index, "expr")
                         flag = True
 
                 # Typecast
-                elif (i[1] == "MAEK Keyword"):
-                    if(dupeLexeme[index+1]=="varident" and dupeLexeme[index+2]=="TYPE Literal"):
+                elif (i[1] == "Typecast Declaration"):
+                    if(dupeLexeme[index+1]=="varident" and dupeLexeme[index+2]=="Type Literal"):
                         del dupeLexeme[index:index+2]
                         dupeLexeme.insert(index,"typecast")
                         flag = True
