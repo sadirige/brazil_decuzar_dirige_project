@@ -19,9 +19,6 @@ import tkinter as tk
 from tkinter import filedialog, ttk, PanedWindow
 import re
 
-symbolTable ={}
-lexemeDictionary ={}
-
 regexDictionary = {
     r'[\"][^\"]*[\"]': "String Literal",
     r'\b-?[0-9]+\.[0-9]+\b': "Float Literal",
@@ -54,9 +51,9 @@ regexDictionary = {
     r'\bBOTH SAEM\b': "Equal",
     r'\bDIFFRINT\b': "Not Equal",
     r'\bSMOOSH\b': "Concatenate",
-    r'\bMAEK\b': "Typecast Declaration",
-    r'\bA\b': "Typecast Assignment",
-    r'\bIS NOW A\b': "Typecast Reassignment",
+    r'\bMAEK\b': "Typecasting Declaration",
+    r'\bA\b': "Typecasting Assignment",
+    r'\bIS NOW A\b': "Typecasting Reassignment",
     r'\bVISIBLE\b': "Output Keyword",
     r'\bGIMMEH\b': "Input Keyword",
     r'\bO RLY\?\b': "If-Then Delimiter",
@@ -89,17 +86,16 @@ class InterpreterApp:
         self.root = root
         self.root.title("Team (ﾉ◕ヮ◕)ﾉ*:･ﾟ LOLTERPRETER")
         self.current_file = None
-
         self.create_widgets()
 
-        # Initialize window in maximized state
+        #Initialize window in maximized state
         self.root.update_idletasks()
         try:
-            self.root.wm_attributes('-zoomed', True) # Works for Ubuntu and others, not Arch
+            self.root.wm_attributes('-zoomed', True) #Works for Ubuntu and others, not Arch
         except:
-            self.root.state('zoomed') # Works for Windows and others, not Ubuntu
+            self.root.state('zoomed') #Works for Windows and others, not Ubuntu
 
-        self.root.after(100, self.initialize_parts_sashpos)  # Update sash position after main loop starts
+        self.root.after(100, self.initialize_parts_sashpos)  #Update sash position after main loop starts
 
     # -----------------------------------------------------------------------------------------
     # Rendering the elements in the GUI
@@ -372,7 +368,7 @@ class InterpreterApp:
         index = 0
 
         literals = ["String Literal", "Float Literal", "Integer Literal", "Boolean Literal"]
-        operands = ["varident", "literal"]
+        operands = ["varident", "Literal"]
         mathoperator = ["Add", "Subtract", "Multiply", "Divide", "Mod", "Max", "Min"]
 
         while (True):
@@ -415,7 +411,7 @@ class InterpreterApp:
                         flag = True                  
 
                 # Print
-                if (i[1] == "VISIBLE Keyword"):
+                if (i[1] == "Output Keyword"):
                     if(dupeLexeme[index+1] in operands or 
                        dupeLexeme[index+1] == "expr"):
                         del dupeLexeme[index:index+1]
@@ -435,11 +431,11 @@ class InterpreterApp:
                         dupeLexeme.insert(index, "expr")
                         flag = True
 
-                # Typecast
-                elif (i[1] == "Typecast Declaration"):
+                # Typecasting
+                elif (i[1] == "Typecasting Declaration"):
                     if(dupeLexeme[index+1]=="varident" and dupeLexeme[index+2]=="Type Literal"):
                         del dupeLexeme[index:index+2]
-                        dupeLexeme.insert(index,"typecast")
+                        dupeLexeme.insert(index,"Typecasting")
                         flag = True
 
                 # Comment
