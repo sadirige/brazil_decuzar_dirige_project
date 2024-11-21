@@ -1,5 +1,10 @@
-BTW start of the program
 HAI
     I HAS A monde
-    I HAS A num ITZ 17
+    I HAS A num ITZ 17 
+    GIMMEH monde
+    VISIBLE SUM OF monde AN num
+    VISIBLE monde
+    GIMMEH num
+    GIMMEH monde
+    VISIBLE DIFF OF num AN monde
 KTHXBYE
