@@ -1,85 +1,27 @@
 '''
+This part is the main file where the GUI is loaded for the Interpreter
+
 References:
 1. Sample Graphical User Interface (GUI) from Project Specifications
 2. OOP use of tkinter - CMSC 170 Exer 1 (8-Puzzle Game) Template
 3. Allow Text editor, List of Tokens & Symbol Table to be horizontally resizable
-   Allow (Text editor, List of Tokens & Symbol Table) and console_part to be vertically resizable
+   Allow (Text editor, List of Tokens & Symbol Table) and console to be vertically resizable
         https://www.geeksforgeeks.org/python-panedwindow-widget-in-tkinter/
         https://ultrapythonic.com/tkinter-panedwindow/
 4. Adding hover effect on buttons
         https://www.geeksforgeeks.org/tkinter-button-that-changes-its-properties-on-hover/
 5. Initializing root window to maximized state
         https://blog.finxter.com/5-best-ways-to-initialize-a-window-as-maximized-in-tkinter-python/
-   Use of try except for different ways to maximize root window since some methods work on other devices while others can't
+   Use of try except for different ways to maximize root window since some methods work on other devices while others don't
         https://stackoverflow.com/questions/15981000/tkinter-python-maximize-window
 6. Add line numbers beside Text Editor for better UX
         https://stackoverflow.com/questions/16369470/tkinter-adding-line-number-to-text-widget
 '''
 import tkinter as tk
 from tkinter import filedialog, ttk, PanedWindow
-import re
-
-regexDictionary = {
-    r'[\"][^\"]*[\"]': "String Literal",
-    r'\b-?[0-9]+\.[0-9]+\b': "Float Literal",
-    r'\b-?[0-9]+\b': "Integer Literal",
-    r'\b(WIN|FAIL)\b': "Boolean Literal",
-    r'\b(NUMBR|NUMBAR|YARN|TROOF|NOOB)\b': "Type Literal",
-    r'\bHAI\b': "Code Delimiter",
-    r'\bKTHXBYE\b': "Code Delimiter",
-    r'\bWAZZUP\b': "Variable Delimiter",
-    r'\bBUHBYE\b': "Variable Delimiter",
-    r'\bBTW\b': "Comment",
-    r'\bmultiline_comment\b': "Multi-line Comment Delimiter",
-    r'\bTLDR\b': "Multi-line Comment Delimiter",
-    r'\bI HAS A\b': "Variable Declaration",
-    r'\bITZ\b': "Variable Assignment",
-    r'\bR\b': "Variable Reassignment",
-    r'\bSUM OF\b': "Add",
-    r'\bDIFF OF\b': "Subtract",
-    r'\bPRODUKT OF\b': "Multiply",
-    r'\bQUOSHUNT OF\b': "Divide",
-    r'\bMOD OF\b': "Modulo",
-    r'\bBIGGR OF\b': "Max",
-    r'\bSMALLR OF\b': "Min",
-    r'\bBOTH OF\b': "And",
-    r'\bEITHER OF\b': "Or",
-    r'\bWON OF\b': "Xor",
-    r'\bNOT\b': "Not",
-    r'\bANY OF\b': "Any",
-    r'\bALL OF\b': "All",
-    r'\bBOTH SAEM\b': "Equal",
-    r'\bDIFFRINT\b': "Not Equal",
-    r'\bSMOOSH\b': "Concatenate",
-    r'\bMAEK\b': "Typecasting Declaration",
-    r'\bA\b': "Typecasting Assignment",
-    r'\bIS NOW A\b': "Typecasting Reassignment",
-    r'\bVISIBLE\b': "Output Keyword",
-    r'\bGIMMEH\b': "Input Keyword",
-    r'\bO RLY\?\b': "If-Then Delimiter",
-    r'\bYA RLY\b': "If Keyword",
-    r'\bMEBBE\b': "Else If Keyword",
-    r'\bNO WAI\b': "Else Keyword",
-    r'\bOIC\b': "If-Then/Switch-Case Delimiter",
-    r'\bWTF\?\b': "Switch-Case Delimiter",
-    r'\bOMG\b': "Case Keyword",
-    r'\bOMGWTF\b': "Default Keyword",
-    r'\bIM IN YR\b': "Loop Delimiter",
-    r'\bUPPIN\b': "Increment Keyword",
-    r'\bNERFIN\b': "Decrement Keyword",
-    r'\bYR\b': "Variable Call",
-    r'\bTIL\b': "Loop Until",
-    r'\bWILE\b': "Loop While",
-    r'\bIM OUTTA YR\b': "Loop Delimiter",
-    r'\bHOW IZ I\b': "Function Delimiter",
-    r'\bIF U SAY SO\b': "Function Delimiter",
-    r'\bGTFO\b': "Break/Return",
-    r'\bFOUND YR\b': "Return With Value",
-    r'\bI IZ\b': "Function Call Delimiter",
-    r'\bMKAY\b': "Function Call Delimiter",
-    r'\bAN\b': "Another One Keyword",
-    r'\b[a-zA-Z][a-zA-Z0-9_]*\b': "Variable Identifier"
-}
+from lexer import tokenize
+from parser import Parser
+from semantic_analyzer import SemanticAnalyzer
 
 class InterpreterApp:
     def __init__(self, root):
@@ -166,7 +108,7 @@ class InterpreterApp:
         #Add the horizontal paned window to the vertical paned window (essentially this is the upper part)
         self.vertical_pw.add(self.horizontal_pw)
 
-        #Now we create the lower part of the vertical paned window (contains execute button and console_part)
+        #Now we create the lower part of the vertical paned window (contains execute button and console)
         execute_console_part_frame = tk.Frame(self.vertical_pw)
         
         #(5) Execute/Run button - This will run the code from the text editor (2).
@@ -174,9 +116,9 @@ class InterpreterApp:
         execute_button.pack(fill=tk.X, pady=(0, 5))
         self.change_on_hover(execute_button) #Add hover effect on button
 
-        #(6) console_part - Input/Output of the program should be reflected in the console_part. For variable input, you can add a separate field for user input, or have a dialog box pop up.
-        console_part = tk.Text(execute_console_part_frame, height=5, wrap="word")
-        console_part.pack(fill=tk.BOTH, expand=True)
+        #(6) Console - Input/Output of the program should be reflected in the console. For variable input, you can add a separate field for user input, or have a dialog box pop up.
+        self.console_part = tk.Text(execute_console_part_frame, height=5, wrap="word")
+        self.console_part.pack(fill=tk.BOTH, expand=True)
 
         #Add the lower part to the vertical paned window
         self.vertical_pw.add(execute_console_part_frame)
@@ -269,290 +211,57 @@ class InterpreterApp:
                 file.write("\n".join(lolcode))
 
         #1. Tokenize each line in lolcode and display in the list of tokens (lexemes) - LEXICAL ANALYSIS
-        lexemes = self.lexer(lolcode)
+        lexemes = tokenize(lolcode)
         print(lexemes)
         self.display_lexemes(lexemes)
 
         #2. Convert tokens to symbol table - SYNTAX ANALYSIS
-        self.checkSyntax(lexemes)
-        symbolTable = self.get_var_assignments(lexemes)
-        self.display_symbol(symbolTable)
+        parse = Parser(lexemes)
+        symbol_table, ast = parse.program()
+        self.display_symbol_table(symbol_table)
 
-    def lexer(self, lolcode):
-        tokens = []
-        line_number = 1
-        multiline_comment = False
+        if ast[0] == "Syntax Error":
+            #do something else
+            print("failed")
+            self.console_part.insert(tk.END, "Syntax Error: " + ast[1])
 
-        for line in lolcode: 
-            line = line.strip()
-            match_found = False
+        #3. If syntax is correct (there is a Generated AST from syntax analysis), perform semantic analysis
+        else:
+            #semantic analysis
+            print("success")
+            print(ast)
+            semantic = SemanticAnalyzer(ast[1])
+            output = semantic.run()
+            self.display_console(output)
 
-            while line:
-                i = 0
-                #iterate through each regex to check if certain sequence of characters in line match them
-                while i < len(regexDictionary.items()):
-                    regex, classification = list(regexDictionary.items())[i]
-                    match = re.match(regex, line)      
-                    if match:
-                        i = 0  #once there's a match, reset i so the next sequence of characters will be checked from start to finish of the regexDictionary
-                        match_found = True
-                        lexeme = match.group(0)
-
-                        #if TLDR is found in line, just set flag of multiline comment to false and continue to check if there are other lexemes in the same line as TLDR
-                        #this is not allowed based on the project specs, but it's not the job of the lexical analyzer to check this, it's the syntax analyzer's
-                        if lexeme == "TLDR":
-                            tokens.append((lexeme, classification, line_number))
-                            multiline_comment = False
-                        
-                        #once OBTW is found, set multiline comment flag to true, then ignore the rest of the line (characters after OBTW)
-                        #add OBTW to tokens, it won't be shown in the Lexemes part of the GUI but it's necessary for the syntax analysis
-                        elif multiline_comment == False and lexeme == "OBTW":
-                            tokens.append((lexeme, classification, line_number))
-                            multiline_comment = True
-                            line = ""
-                            break
-
-                        #if multiline comment flag is true, ignore line since it means it's between OBTW and TLDR
-                        elif multiline_comment:
-                            line = ""
-                            break
-
-                        #single line comment, ignore additional characters after BTW
-                        elif lexeme == "BTW":
-                            tokens.append((lexeme, classification, line_number))
-                            line = ""
-                            break
-                        
-                        #if a string literal was matched, break it down into delimiters (quotation symbols) and the actual string value
-                        elif classification == "String Literal":
-                            tokens.append((lexeme[0], "String Delimiter", line_number))
-                            tokens.append((lexeme[1:-1], classification, line_number))
-                            tokens.append((lexeme[-1], "String Delimiter", line_number))
-
-                        #other regex matches can just be added to tokens without additional instructions
-                        else:
-                            tokens.append((lexeme, classification, line_number))
-
-                        line = line[len(lexeme):].strip() #remove parts of the line that have already been matched
-
-                    i += 1 #move to the next regex and check if it matches what's on the line
-
-                #Check if there are any unrecognized parts left in the line after iterating through all regex
-                if not match_found:
-                    error_message = "Unrecognized token \"" + line.strip() + "\" at line " + str(line_number) + "."
-                    tk.messagebox.showerror("Lexical Error", error_message)
-                    # print(line.strip())
-                    tokens.clear()
-                    return tokens
-                
-                match_found = False
-
-            #Add newline after every line, this won't be shown in the Lexemes part, but it will be used for Syntax Analysis
-            tokens.append(("\n", "Newline", line_number))
-            line_number += 1
-        
-        return tokens
-
+    # -----------------------------------------------------------------------------------------
+    # Updates the Lexemes part of the GUI once the lines of the lolcode in the text editor are tokenized
+    # -----------------------------------------------------------------------------------------
     def display_lexemes(self, lexemes):
         for lexeme, classification, _ in lexemes:
-            if lexeme == "\n" and classification == "Newline":
+            if lexeme == "\n" and classification == "Linebreak":
                 continue
             elif lexeme == "BTW" or lexeme == "OBTW" or lexeme == "TLDR":
                 continue
+            elif classification == "Lexical Error":
+                self.console_part.insert(tk.END, lexeme + "\n")
             else:
                 #ignore newline and comments, only show the other more important lexemes
                 self.lexemes.insert('', tk.END, values=(lexeme, classification))
-                
-    def checkSyntax(self, lexemes):
-        dupeLexeme = list(lexemes)
-        index = 0
 
-        literals = ["String Literal", "Float Literal", "Integer Literal", "Boolean Literal"]
-        operands = ["varident", "Literal"]
-        mathoperator = ["Add", "Subtract", "Multiply", "Divide", "Mod", "Max", "Min"]
+    # -----------------------------------------------------------------------------------------
+    # Updates the Symbol Table part of the GUI once the tokens' syntax are checked
+    # -----------------------------------------------------------------------------------------
+    def display_symbol_table(self, symbolTable):
+        for variable, (_, value) in symbolTable.items():
+            self.symbols.insert('', tk.END, values=(variable, value))
 
-        while (True):
-            for i in dupeLexeme:
-                flag = False 
-                index = dupeLexeme.index(i)
-
-                # -------------- Simplify tokens
-                # Literals
-                if (i[1] in ["String Literal", "Float Literal", "Integer Literal", "Boolean Literal"]):
-                    del dupeLexeme[index]
-                    dupeLexeme.insert(index, "literal")
-                    flag = True
-
-                elif(i[1] == "String Delimiter"):
-                    if(dupeLexeme[index+1]=="literal" and dupeLexeme[index+2][1]=="String Delimiter"):
-                        del dupeLexeme[index:(index+3)]
-                        dupeLexeme.insert(index, "literal")
-                        flag = True
-                
-                # Variable Identifier
-                elif (i[1] == "Variable Identifier"):
-                    del dupeLexeme[index]
-                    dupeLexeme.insert(index, "varident")
-                    flag = True
-
-                # Variable Declaration
-                elif (i[1] == "Variable Declaration"):
-                    if(dupeLexeme[index+1]=="varident" and dupeLexeme[index+2][1]=="Variable Assignment" and dupeLexeme[index+3] in operands):
-                        del dupeLexeme[index:(index+4)]
-                        dupeLexeme.insert(index, "vardef")
-                        flag = True
-                    elif(dupeLexeme[index+1]=="varident" and dupeLexeme[index+2]=="expr"):
-                        del dupeLexeme[index:(index+3)]
-                        dupeLexeme.insert(index, "vardef")
-                        flag = True
-                    elif(dupeLexeme[index+1]=="varident"):
-                        del dupeLexeme[index:(index+2)]
-                        dupeLexeme.insert(index, "vardef")
-                        flag = True                  
-
-                # Print
-                if (i[1] == "Output Keyword"):
-                    if(dupeLexeme[index+1] in operands or 
-                       dupeLexeme[index+1] == "expr"):
-                        del dupeLexeme[index:index+1]
-                        dupeLexeme.insert(index, "print")
-
-                # Scan
-                elif (i[1] == "Input Keyword"):
-                    if(dupeLexeme[index+1]=="varident"):
-                        del dupeLexeme[index:(index+1)]
-                        dupeLexeme.insert(index, "scan")
-                        flag = True
-
-                # Expr: Math
-                elif (i[1] in mathoperator):
-                    if (dupeLexeme[index+1] in operands and dupeLexeme[index+2][1]=="Another One Keyword" and dupeLexeme[index+3] in operands):
-                        del dupeLexeme[index:index+3]
-                        dupeLexeme.insert(index, "expr")
-                        flag = True
-
-                # Typecasting
-                elif (i[1] == "Typecasting Declaration"):
-                    if(dupeLexeme[index+1]=="varident" and dupeLexeme[index+2]=="Type Literal"):
-                        del dupeLexeme[index:index+2]
-                        dupeLexeme.insert(index,"Typecasting")
-                        flag = True
-
-                # Comment
-                elif (i[1] == "Comment"):
-                    del dupeLexeme[index]
-                    flag = True
-
-                # Linebreak
-                elif (i[1] == "Newline"):
-                    del dupeLexeme[index]
-                    dupeLexeme.insert(index,"linebreak")
-                    flag = True
-                elif (i == "linebreak"):
-                    if(dupeLexeme[index+1]=="linebreak"):                        
-                        del dupeLexeme[index:(index+1)]
-                        dupeLexeme.insert(index,"linebreak")
-                        flag = True
-            if (flag == False):
-                break
-            
-        while(True):
-            for i in dupeLexeme:
-                flag = False 
-                index = dupeLexeme.index(i)
-                # Statement
-                if (i in ["print", "vardef", "scan"]):
-                    del dupeLexeme[index:(index+1)]
-                    dupeLexeme.insert(index, "statement")
-                    flag = True
-                elif (i == "statement"):
-                    if(dupeLexeme[index+1]=="linebreak" and dupeLexeme[index+2]=="statement"):
-                        del dupeLexeme[index:(index+3)]
-                        dupeLexeme.insert(index, "statement")
-                        flag = True
-
-            # Program Body
-            # if (i[1] == "Code Delimiter"):
-            #     if(dupeLexeme[index+1]=="linebreak" and dupeLexeme[index+2]=="statement" and dupeLexeme[index+3]=="linebreak" and dupeLexeme[index+4][1]=="Code Delimiter" and dupeLexeme[index+5]=="statement"):
-            #         del dupeLexeme[index:(index+6)]
-            #         dupeLexeme.insert(index, "program")
-            #         flag = True
-            if (flag == False):
-                break
-
-        for i in dupeLexeme:
-            print(i)
-                    
-    def get_var_assignments(self, lexemes):
-        symbolTable = []
-
-        for i in range(len(lexemes)):
-            if lexemes[i][1] == "Variable Declaration":
-                var_name = lexemes[i+1][0]  # gets the name of the variable
-                    
-                if i+1 < len(lexemes) and lexemes[i+1][1] == "Variable Identifier":     # checks if a valid variable name was declared
-                    if i+2 < len(lexemes) and lexemes[i+2][1] == "Variable Assignment": # checks if there is a value to be assigned
-                        value_token = lexemes[i+3]                                      # gets the value assigned to the variable
-                        if lexemes[i+3][1] == "String Delimiter":
-                            value_token = lexemes[i+4]
-                        
-                        if value_token[1] == "Integer Literal":
-                            symbolTable.append((var_name, int(value_token[0])))         # if the value assigned is an integer
-                        elif value_token[1] == "Float Literal":
-                            symbolTable.append((var_name, float(value_token[0])))       # if the value assigned is a float
-                        elif value_token[1] == "Boolean Literal" or "String Literal":
-                            symbolTable.append((var_name, value_token[0]))              # if the value assigned is of boolean type or string
-                    else:
-                        symbolTable.append((var_name, None))                            # considers explicit value assignment
-                        
-        return symbolTable
-
-    def display_symbol(self, symbolTable):
-        for i in range(len(symbolTable)):
-            token = symbolTable
-            self.symbols.insert('', tk.END, values = (token[i][0], token[i][1]))        # displays the values onto the symbol table
-            
-    
-    def getIdentifier(self, lolcode):
-        nonIdentifierLexemes = []
-        identifierLexemes = []
-        validNonIdentifier = list(regexDictionary.keys())[0:-1]
-        validIdentifier = list(regexDictionary.keys())[-1]
-    
-        for current in validNonIdentifier:
-            nonIdentifierLexemes = nonIdentifierLexemes + re.findall(current, lolcode)
-            lolcode = re.sub(current, " ", lolcode)
-        identifierLexemes = re.findall(validIdentifier, lolcode)
-        
-        identifierLexemes = list(set(identifierLexemes)-set(nonIdentifierLexemes))
-        return identifierLexemes
-
-    def getSymbolTable(self, lolcode):
-        dupliCode = lolcode
-        validRegex = list(regexDictionary.keys())
-        identifier = validRegex[-1]
-        
-        for current in validRegex:
-            lexemes = re.findall(current, lolcode)
-            lolcode = re.sub(current, " ", lolcode)
-            
-            for currentLexeme in lexemes:
-                symbolTable[currentLexeme] = [regexDictionary[current], None]
-                lexemeDictionary[currentLexeme] = current
-        
-        for current in self.getIdentifier(dupliCode):
-            symbolTable[current] = [regexDictionary[identifier], None]
-            lexemeDictionary[current] = "Identifier"
-            
-        return symbolTable
-    
-    def insertSymbolTable(self, tokens):
-        for lexeme in symbolTable.keys():
-            self.lexemes.insert('', tk.END, values=(lexeme, symbolTable[lexeme][0]))
-            if(symbolTable[lexeme][0] == "Identifier"):
-                self.symbols.insert('', tk.END, values=(lexeme, symbolTable[lexeme][1]))
+    def display_console(self, output):
+        for line in output:
+            self.console_part.insert(tk.END, line)
             
 
+# Create and run the app
 root = tk.Tk()
 app = InterpreterApp(root)
 root.mainloop()
