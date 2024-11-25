@@ -4,7 +4,7 @@ This part is the file containing the lexical analyzer producing tokens from the 
 import re
 
 regexDictionary = {
-    r'\b\+\b': "Concatenation Operator",
+    r'\+': "Concatenation Operator",
     r'[\"][^\"]*[\"]': "String Literal",
     r'\b-?[0-9]+\.[0-9]+\b': "Float Literal",
     r'\b-?[0-9]+\b': "Integer Literal",
