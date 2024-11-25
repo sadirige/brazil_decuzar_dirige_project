@@ -20,19 +20,20 @@ regexDictionary = {
     r'\bI HAS A\b': "Variable Declaration",
     r'\bITZ\b': "Variable Assignment",
     r'\bR\b': "Variable Reassignment",
-    r'\bSUM OF\b': "Add",
-    r'\bDIFF OF\b': "Subtract",
-    r'\bPRODUKT OF\b': "Multiply",
-    r'\bQUOSHUNT OF\b': "Divide",
-    r'\bMOD OF\b': "Modulo",
-    r'\bBIGGR OF\b': "Max",
-    r'\bSMALLR OF\b': "Min",
-    r'\bBOTH OF\b': "And",
-    r'\bEITHER OF\b': "Or",
-    r'\bWON OF\b': "Xor",
+    r'\bSUM\b': "Add",
+    r'\bDIFF\b': "Subtract",
+    r'\bPRODUKT\b': "Multiply",
+    r'\bQUOSHUNT\b': "Divide",
+    r'\bMOD\b': "Modulo",
+    r'\bBIGGR\b': "Max",
+    r'\bSMALLR\b': "Min",
+    r'\bBOTH\b': "And",
+    r'\bEITHER\b': "Or",
+    r'\bWON\b': "Xor",
     r'\bNOT\b': "Not",
-    r'\bANY OF\b': "Any",
-    r'\bALL OF\b': "All",
+    r'\bANY\b': "Any",
+    r'\bALL\b': "All",
+    r'\bOF\b': "First One Keyword",
     r'\bBOTH SAEM\b': "Equal",
     r'\bDIFFRINT\b': "Not Equal",
     r'\bSMOOSH\b': "Concatenation",
@@ -77,7 +78,8 @@ def tokenize(lolcode):
 
         while line:
             #iterate through each regex to check if certain sequence of characters in line match them
-            for i in range(len(regexDictionary)):
+            i = 0
+            while i < len(regexDictionary):
                 regex, classification = list(regexDictionary.items())[i]
                 match = re.match(regex, line)      
                 if match:
@@ -121,6 +123,8 @@ def tokenize(lolcode):
                         tokens.append((lexeme, classification, line_number))
 
                     line = line[len(lexeme):].strip() #remove parts of the line that have already been matched
+                else:
+                    i += 1
 
             #Check if there are any unrecognized parts left in the line after iterating through all regex
             if not match_found:
