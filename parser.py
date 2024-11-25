@@ -87,11 +87,340 @@ class Parser:
         <funcdef> ::= HOW IZ I funcident <linebreak> <funcbody> <linebreak> IF U SAY SO |
                       HOW IZ I funcident <param> <funcbody> <linebreak> IF U SAY SO
         """
+        if self.expect("Function Delimiter", "HOW IZ I"):
+            self.consume("Function Delimiter", "HOW IZ I")
+            if self.expect("Variable Identifier"):
+                funcident = self.current_token()[0]
+                self.consume("Variable Identifier")
+                if self.expect("Linebreak"):
+                    self.consume("Linebreak")
+                    statements = self.funcbody()
+                    self.consume("Function Delimiter", "IF U SAY SO")
+                    return {"type": "Function Definition", "name": funcident, "statements": statements}
+                elif self.expect("Function Delimiter", "IF U SAY SO"):
+                    self.consume("Function Delimiter", "IF U SAY SO")
+                    return {"type": "Function Definition", "name": funcident, "statements": []}
+                elif self.expect("Function Delimiter", "YR"):
+                    self.consume("Function Delimiter", "YR")
+                    param = self.param()
+                    self.consume("Linebreak")
+                    statements = self.funcbody()
+                    self.consume("Function Delimiter", "IF U SAY SO")
+                    return {"type": "Function Definition", "name": funcident, "param": param, "statements": statements}
+                else:
+                    raise SyntaxError(f"Expected a linebreak or 'IF U SAY SO' after function definition, found {self.current_token()}")
+            else:
+                raise SyntaxError(f"Expected a function identifier after 'HOW IZ I', found {self.current_token()}")
 
     def funcbody(self):
         """
         <funcbody> ::= <statement> | <statement> <funcbody> | <funcret>
         """
+        statements = []
+        while not self.expect("Function Delimiter", "IF U SAY SO"):
+            if self.expect("Code Delimiter", "HAI"):
+                raise SyntaxError(f"Unexpected 'HAI' found before 'IF U SAY SO': {self.current_token()}")
+            elif self.current_token() is None:
+                raise SyntaxError("No 'IF U SAY SO' found, missing function delimiter.")
+            elif self.expect("Return With Value") or self.expect("Break/Return"):
+                statements.append(self.funcret())
+                break
+                #anything after GTFO or FOUND YR is ignored
+            else:
+                statements.append(self.statement())
+        return statements
+    
+    def param(self):
+        """
+        <param> ::= YR varident | YR varident <paramext>
+        """
+        if self.expect("Function Delimiter", "YR"):
+            self.consume("Function Delimiter", "YR")
+            if self.expect("Variable Identifier"):
+                varident = self.current_token()[0]
+                self.consume("Variable Identifier")
+                if self.expect("Function Delimiter", "AN"):
+                    return {"type": "Parameter", "name": varident, "next": self.paramext()}
+                else:
+                    return {"type": "Parameter", "name": varident}
+            else:
+                raise SyntaxError(f"Expected a variable identifier after 'YR', found {self.current_token()}")
+        else:
+            raise SyntaxError(f"Expected 'YR' after 'HOW IZ I', found {self.current_token()}")
+
+    def paramext(self):
+        """
+        <paramext> ::= AN YR varident | AN YR varident <paramext>
+        """
+        if self.expect("Another One Keyword", "AN"):
+            self.consume("Another One Keyword", "AN")
+            self.consume("Function Delimiter", "YR")
+            if self.expect("Variable Identifier"):
+                varident = self.current_token()[0]
+                self.consume("Variable Identifier")
+                if self.expect("Function Delimiter", "AN"):
+                    return {"type": "Parameter", "name": varident, "next": self.paramext()}
+                else:
+                    return {"type": "Parameter", "name": varident}
+            else:
+                raise SyntaxError(f"Expected a variable identifier after 'YR', found {self.current_token()}")
+        else:
+            raise SyntaxError(f"Expected 'AN' after 'YR', found {self.current_token()}")
+
+    def funcret(self):
+        """
+        <funcret> ::= FOUND YR varident | FOUND YR <expr> | GTFO
+        """
+        if self.expect("Return With Value"):
+            self.consume("Return With Value")
+            if self.expect("Variable Identifier"):
+                varident = self.current_token()[0]
+                self.consume("Variable Identifier")
+                self.consume("Linebreak")
+                return {"type": "Return", "value": varident}
+            elif self.expect("Variable Identifier"):
+                expr = self.expr()
+                self.consume("Linebreak")
+                return {"type": "Return", "value": expr}
+            else:
+                raise SyntaxError(f"Expected a variable identifier or expression after 'FOUND YR', found {self.current_token()}")
+        elif self.expect("Break/Return"):
+            self.consume("Break/Return")
+            self.consume("Linebreak")
+            return {"type": "Break"}
+        else:
+            raise SyntaxError(f"Expected 'FOUND YR' or 'GTFO', found {self.current_token()}")
+        
+    def funccall(self):
+        """
+        <funccall> ::= I IZ funcident MKAY | 
+                       I IZ funcident <param> MKAY
+        """
+        if self.expect("Function Call Delimiter", "I IZ"):
+            self.consume("Function Call Delimiter", "I IZ")
+            if self.expect("Variable Identifier"):
+                funcident = self.current_token()[0]
+                self.consume("Variable Identifier")
+                if self.expect("Function Call Delimiter", "MKAY"):
+                    self.consume("Function Call Delimiter", "MKAY")
+                    return {"type": "Function Call", "name": funcident}
+                elif self.expect("Function Delimiter", "YR"):
+                    param = self.param()
+                    self.consume("Function Call Delimiter", "MKAY")
+                    return {"type": "Function Call", "name": funcident, "param": param}
+                else:
+                    raise SyntaxError(f"Expected 'MKAY' or 'YR' after function identifier, found {self.current_token()}")
+            else:
+                raise SyntaxError(f"Expected a function identifier after 'I IZ', found {self.current_token()}")
+        else:
+            raise SyntaxError(f"Expected 'I IZ' after 'HOW IZ I', found {self.current_token()}")
+
+    def typecast(self):
+        """
+        <typecast> ::= MAEK varident <type>
+        <type> ::= A TROOF | A NUMBR | A NUMBAR | YARN
+        """
+        self.consume("Typecast", "MAEK")
+        if self.expect("Variable Identifier"):
+            varident = self.current_token()[0]
+            self.consume("Variable Identifier")
+            if self.expect("Type"):
+                type = self.current_token()[0]
+                self.consume("Type")
+                return {"type": "Typecast", "variable": varident, "type": type}
+            else:
+                raise SyntaxError(f"Expected a type after 'MAEK', found {self.current_token()}")
+        else:
+            raise SyntaxError(f"Expected a variable identifier after 'MAEK', found {self.current_token}")
+
+    def retype(self):
+        """
+        <retype> ::= varident IS NOW <type> | varident R MAEK varident A <type>
+        """
+        if self.expect("Variable Identifier"):
+            varident = self.current_token()[0]
+            self.consume("Variable Identifier")
+            if self.expect("Variable Assignment"):
+                self.consume("Variable Assignment")
+                if self.expect("Type"):
+                    type = self.current_token()[0]
+                    self.consume("Type")
+                    return {"type": "Retype", "variable": varident, "type": type}
+                else:
+                    raise SyntaxError(f"Expected a type after 'IS NOW', found {self.current_token()}")
+            elif self.expect("Typecast", "MAEK"):
+                self.consume("Typecast", "MAEK")
+                if self.expect("Variable Identifier"):
+                    varident = self.current_token()[0]
+                    self.consume("Variable Identifier")
+                    if self.expect("Typecast", "A"):
+                        self.consume("Typecast", "A")
+                        if self.expect("Type"):
+                            type = self.current_token()[0]
+                            self.consume("Type")
+                            return {"type": "Retype", "variable": varident, "type": type}
+                        else:
+                            raise SyntaxError(f"Expected a type after 'A', found {self.current_token()}")
+                    else:
+                        raise SyntaxError(f"Expected 'A' after variable identifier, found {self.current_token()}")
+                else:
+                    raise SyntaxError(f"Expected a variable identifier after 'MAEK', found {self.current_token()}")
+            else:
+                raise SyntaxError(f"Expected 'IS NOW' or 'MAEK' after variable identifier, found {self.current_token()}")
+        else:
+            raise SyntaxError(f"Expected a variable identifier after 'MAEK', found {self.current_token()}")
+        
+    def loop(self):
+        """
+        <loop> ::= IM IN YR loopident <loopop> YR varident <linebreak> <loopbody> <linebreak> IM OUTTA YR loopident | 
+                   IM IN YR loopident <loopop> YR varident <loopcond> <expr> <linebreak> <loopbody> <linebreak> IM OUTTA YR loopident
+        <loopop> ::= UPPIN | NERFIN
+        <loopcond> ::= TIL | WILE
+        """
+        if self.expect("Loop Delimiter", "IM IN YR"):
+            self.consume("Loop Delimiter", "IM IN YR")
+            if self.expect("Variable Identifier"):
+                loopident = self.current_token()[0]
+                self.consume("Variable Identifier")
+                if self.expect("Increment Keyword") or self.expect("Decrement Keyword"):
+                    loopop = self.loopop()
+                    self.consume("Variable Call", "YR")
+                    if self.expect("Variable Identifier"):
+                        varident = self.current_token()[0]
+                        self.consume("Variable Identifier")
+                        if self.expect("Linebreak"):
+                            self.consume("Linebreak")
+                            body = self.loopbody()
+                            self.consume("Loop Delimiter", "IM OUTTA YR")
+                            self.consume("Variable Identifier", loopident)
+                            return {"type": "Loop", "name": loopident, "operation": loopop, "variable": varident, "body": body}
+                        else:
+                            raise SyntaxError(f"Expected a linebreak after variable identifier, found {self.current_token()}")
+                    else:
+                        raise SyntaxError(f"Expected a variable identifier after loop operation, found {self.current_token()}")
+                elif self.expect("Loop Until") or self.expect("Loop While"):
+                    loopcond = self.loopcond()
+                    expr = self.expr()
+                    if self.expect("Linebreak"):
+                        self.consume("Linebreak")
+                        body = self.loopbody()
+                        self.consume("Loop Delimiter", "IM OUTTA YR")
+                        self.consume("Variable Identifier", loopident)
+                        return {"type": "Loop", "name": loopident, "condition": loopcond, "expression": expr, "body": body}
+                    else:
+                        raise SyntaxError(f"Expected a linebreak after expression, found {self.current_token()}")
+                else:
+                    raise SyntaxError(f"Expected a loop operation or condition after variable identifier, found {self.current_token()}")
+            else:
+                raise SyntaxError(f"Expected a variable identifier after 'IM IN YR', found {self.current_token()}")
+        else:
+            raise SyntaxError(f"Expected 'IM IN YR' after 'HOW IZ I', found {self.current_token()}")
+
+    def loopbody(self):
+        """
+        <loopbody> ::= <statement> | <statement> <loopbody> | GTFO
+        """
+        statements = []
+        while not self.expect("Loop Delimiter", "IM OUTTA YR"):
+            if self.expect("Code Delimiter", "HAI"):
+                raise SyntaxError(f"Unexpected 'HAI' found before 'IM OUTTA YR': {self.current_token()}")
+            elif self.current_token() is None:
+                raise SyntaxError("No 'IM OUTTA YR' found, missing loop delimiter.")
+            elif self.expect("Return With Value") or self.expect("Break/Return"):
+                statements.append(self.funcret())
+                break
+                #anything after GTFO or FOUND YR is ignored
+            else:
+                statements.append(self.statement())
+        return statements
+
+    def ifthen(self):
+        """
+        <ifthen> ::= <expr> <linebreak> O RLY? <linebreak> YA RLY <linebreak> <statement> <linebreak> OIC | 
+                     <expr> <linebreak> O RLY? <linebreak> YA RLY <linebreak> <statement> <linebreak> NO WAI <linebreak> <statement> <linebreak> OIC
+        """
+        if self.expect("If-Then Delimiter", "O RLY"):
+            self.consume("If-Then Delimiter", "O RLY")
+            if self.expect("Linebreak"):
+                self.consume("Linebreak")
+                if self.expect("If Keyword", "YA RLY"):
+                    self.consume("If Keyword", "YA RLY")
+                    if self.expect("Linebreak"):
+                        self.consume("Linebreak")
+                        true_body = self.statement()
+                        if self.expect("If-Then/Switch-Case Delimiter", "OIC"):
+                            self.consume("If-Then/Switch-Case Delimiter", "OIC")
+                            return {"type": "If-Then", "condition": self.expr(), "true_body": true_body}
+                        elif self.expect("Else If Keyword", "MEBBE"):
+                            self.consume("Else If Keyword", "MEBBE")
+                            if self.expect("Linebreak"):
+                                self.consume("Linebreak")
+                                false_body = self.statement()
+                                if self.expect("If-Then/Switch-Case Delimiter", "OIC"):
+                                    self.consume("If-Then/Switch-Case Delimiter", "OIC")
+                                    return {"type": "If-Then", "condition": self.expr(), "true_body": true_body, "false_body": false_body}
+                                else:
+                                    raise SyntaxError(f"Expected 'OIC' after false body, found {self.current_token()}")
+                            else:
+                                raise SyntaxError(f"Expected a linebreak after 'MEBBE', found {self.current_token()}")
+                        else:
+                            raise SyntaxError(f"Expected 'OIC' or 'MEBBE' after true body, found {self.current_token()}")
+                    else:
+                        raise SyntaxError(f"Expected a linebreak after 'YA RLY', found {self.current_token()}")
+                else:
+                    raise SyntaxError(f"Expected 'YA RLY' after linebreak, found {self.current_token()}")
+            else:
+                raise SyntaxError(f"Expected a linebreak after 'O RLY', found {self.current_token()}")
+        else:
+            raise SyntaxError(f"Expected 'O RLY' after 'HOW IZ I', found {self.current_token()}")
+
+    def switchcase(self):
+        """
+        <switchcase> ::= WTF? <linebreak> <case> OMGWTF <linebreak> <statement> <linebreak> OIC
+        """
+        if self.expect("Switch-Case Delimiter", "WTF?"):
+            self.consume("Switch-Case Delimiter", "WTF?")
+            if self.expect("Linebreak"):
+                self.consume("Linebreak")
+                cases = self.case()
+                if self.expect("Default Keyword", "OMGWTF"):
+                    self.consume("Default Keyword", "OMGWTF")
+                    if self.expect("Linebreak"):
+                        self.consume("Linebreak")
+                        default = self.statement()
+                        if self.expect("If-Then/Switch-Case Delimiter", "OIC"):
+                            self.consume("If-Then/Switch-Case Delimiter", "OIC")
+                            return {"type": "Switch-Case", "cases": cases, "default": default}
+                        else:
+                            raise SyntaxError(f"Expected 'OIC' after default case, found {self.current_token()}")
+                    else:
+                        raise SyntaxError(f"Expected a linebreak after 'OMGWTF', found {self.current_token()}")
+                else:
+                    raise SyntaxError(f"Expected 'OMGWTF' after cases, found {self.current_token()}")
+            else:
+                raise SyntaxError(f"Expected a linebreak after 'WTF?', found {self.current_token()}")
+        else:
+            raise SyntaxError(f"Expected 'WTF?' after 'HOW IZ I', found {self.current_token()}")
+
+    def case(self):
+        """
+        <case> ::= OMG <literal> <linebreak> <statement> <linebreak> | 
+                   OMG <literal> <linebreak> <statement> <linebreak> <case>
+        """
+        cases = []
+        while self.expect("Case Keyword", "OMG"):
+            self.consume("Case Keyword", "OMG")
+            if self.expect("Integer Literal") or self.expect("Float Literal") or self.expect("String Delimiter") or self.expect("Boolean Literal"):
+                literal = self.literal()
+                if self.expect("Linebreak"):
+                    self.consume("Linebreak")
+                    body = self.statement()
+                    cases.append({"type": "Case", "literal": literal, "body": body})
+                else:
+                    raise SyntaxError(f"Expected a linebreak after literal, found {self.current_token()}")
+            else:
+                raise SyntaxError(f"Expected a literal after 'OMG', found {self.current_token()}")
+        return cases
 
     def statement(self):
         """
@@ -116,14 +445,29 @@ class Parser:
             elif self.current_token() is None:
                 raise SyntaxError("No KTHXBYE found, missing code delimiter.")
             else:
+                expr_ops = ["Add", "Subtract", "Multiply", "Divide", "Modulo", "Max", "Min", "And", "Or", "Xor", "Not", "Any", "All", "Equal", "Not Equal"]
                 if self.expect("Output Keyword"):  #VISIBLE keyword (print)
                     statements.append(self.print())
                 elif self.expect("Input Keyword"):  #GIMMEH keyword (scan)
                     statements.append(self.scan())
                 elif self.expect("Variable Identifier"):  #(assignment)
                     statements.append(self.assignment())
+                elif self.current_token()[1] in expr_ops:  #(expr)
+                    statements.append(self.expr())
                 elif self.expect("Concatenation"):  #SMOOSH keyword (concatenate)
                     statements.append(self.concatenate())
+                elif self.expect("Typecast", "MAEK"):  #MAEK keyword (typecast)
+                    statements.append(self.typecast())
+                elif self.expect("Variable Identifier"):  #IS NOW A keyword (retype)
+                    statements.append(self.retype())
+                elif self.expect("Function Call Delimiter", "I IZ"):  #I IZ keyword (funccall)
+                    statements.append(self.funccall())
+                elif self.expect("Loop Delimiter", "IM IN YR"):  #IM IN YR keyword (loop)
+                    statements.append(self.loop())
+                elif self.expect("If-Then Delimiter", "O RLY"):  #O RLY keyword (ifthen)
+                    statements.append(self.ifthen())
+                elif self.expect("Switch-Case Delimiter", "WTF?"):  #WTF? keyword (switchcase)
+                    statements.append(self.switchcase())
                 elif self.expect("Comment"):  #BTW keyword (comment)
                     self.comment()
                 elif self.expect("Multiline Comment Delimiter", "OBTW"):  #OBTW keyword (multiline comment)
@@ -229,13 +573,13 @@ class Parser:
                         + <operand> |
                         + <expr>
         """
-        operand = ["Variable Identifier", "Integer Literal", "Float Literal", "String Delimiter", "Boolean Literal"]
+        operands = ["Variable Identifier", "Integer Literal", "Float Literal", "String Delimiter", "Boolean Literal"]
         expression = ["Add", "Subtract", "Multiply", "Divide", "Modulo", "Max", "Min", "And", "Or", "Xor", "Not", "Any", "All", "Equal", "Not Equal"]
 
         concat = []
         while self.expect("Concatenation Operator", "+"):
             self.consume("Concatenation Operator", "+")  #Consume "+"
-            if self.current_token()[1] in operand or self.current_token()[0] == "NOOB":
+            if self.current_token()[1] in operands or self.current_token()[0] == "NOOB":
                 concat.append(self.operand())
             elif self.current_token()[1] in expression:
                 concat.append(self.expr())
@@ -300,17 +644,16 @@ class Parser:
     
     def math(self):
         """
-        <math> ::=  <mathoperator> OF <operand> AN <operand> |
-                    <mathoperator> OF <math> AN <operand> |
+        <math> ::=  <mathoperator> OF <mathext> AN <mathext>
         """
-        math = ["Add", "Subtract", "Multiply", "Divide", "Modulo", "Max", "Min"]
-        if self.current_token()[1] in math:
+        math_ops = ["Add", "Subtract", "Multiply", "Divide", "Modulo", "Max", "Min"]
+        if self.current_token()[1] in math_ops:
             operator = self.current_token()[1]
             self.consume(operator)
             self.consume("First One Keyword", "OF")
-            left = self.math()
+            left = self.mathext()
             self.consume("Another One Keyword", "AN")
-            right = self.operand()
+            right = self.mathext()
             return {
                 "type": "Math",
                 "operator": operator,
@@ -318,7 +661,20 @@ class Parser:
                 "right": right
             }
         else:
+            raise SyntaxError(f"Expected a Math Operator, but found {self.current_token()}")
+
+    def mathext(self):
+        """
+       <mathext> ::= <operand> | <math>
+        """
+        literal_varident = ["Variable Identifier", "Integer Literal", "Float Literal", "String Delimiter", "Boolean Literal"]
+        math_ops = ["Add", "Subtract", "Multiply", "Divide", "Modulo", "Max", "Min"]
+        if self.current_token()[1] in literal_varident:
             return self.operand()
+        elif self.current_token()[1] in math_ops:
+            return self.math()
+        else:
+            raise SyntaxError(f"Unexpected token {self.current_token()} while parsing mathext")
         
     def boolean(self):
         """
@@ -403,7 +759,6 @@ class Parser:
                 "right": self.booleanext()
             }
         
-
     def comparison(self, operator):
         """
         <comparison> ::= <compoperator> numbr AN numbr |
@@ -497,9 +852,17 @@ class Parser:
         if self.expect("Variable Delimiter", "WAZZUP"):
             self.consume("Variable Delimiter", "WAZZUP")
             self.consume("Linebreak")
-            vardefs = self.vardef()
+
+            vardefs = []
+            while not self.expect("Variable Delimiter", "BUHBYE"):
+                if self.expect("Comment"):
+                    self.comment()
+                elif self.expect("Multiline Comment Delimiter", "OBTW"):
+                    self.multcomment()
+                else:
+                    vardefs.extend(self.vardef())
+
             self.consume("Variable Delimiter", "BUHBYE")
-            self.consume("Linebreak")
             return vardefs
         else:
             return []
