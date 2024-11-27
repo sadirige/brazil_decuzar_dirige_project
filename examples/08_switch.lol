@@ -1,8 +1,9 @@
 HAI
-
-	I HAS A choice
-	I HAS A input
-
+	WAZZUP
+		I HAS A choice
+		I HAS A input
+	BUHBYE
+	
 	BTW if w/o MEBBE, 1 only, everything else is invalid
 	VISIBLE "1. Compute age"
 	VISIBLE "2. Compute tip"
@@ -27,7 +28,7 @@ HAI
 		OMG 3
 			VISIBLE "Enter width: "
 			GIMMEH input
-			VISIBLE "Square Area: " PRODUCKT OF input AN input
+			VISIBLE "Square Area: " PRODUKT OF input AN input
 			GTFO
 		OMG 0
 			VISIBLE "Goodbye"
