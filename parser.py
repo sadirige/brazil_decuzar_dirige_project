@@ -948,6 +948,8 @@ class Parser:
                 self.comment()
             elif self.expect("Multiline Comment Delimiter", "OBTW"):
                 self.multcomment()
+            elif self.expect("Linebreak"):
+                self.consume("Linebreak")
             else:
                 raise SyntaxError(f"Expected a variable declaration, found {self.current_token()}")
             
