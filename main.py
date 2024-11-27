@@ -213,8 +213,8 @@ class InterpreterApp:
         #1. Tokenize each line in lolcode and display in the list of tokens (lexemes) - LEXICAL ANALYSIS
         lexemes = tokenize(lolcode)
 
-        # for i in lexemes:
-        #     print(i)
+        for i in lexemes:
+            print(i)
         # print(lexemes)
         
         self.display_lexemes(lexemes)

@@ -17,6 +17,9 @@ class Parser:
     
     def next_token(self):
         return self.tokens[self.current_index + 1] if self.current_index + 1 < len(self.tokens) else None
+    
+    def next_next_token(self):
+        return self.tokens[self.current_index + 2] if self.current_index + 2 < len(self.tokens) else None
 
     def expect(self, classification, lexeme=None):
         token = self.current_token()
@@ -552,19 +555,20 @@ class Parser:
         math = ["Add", "Subtract", "Multiply", "Divide", "Modulo", "Max", "Min"]
         boolean = ["And", "Or", "Xor", "Not", "Any", "All"]
         comparison = ["Equal", "Not Equal"]
-        # relational = ["Greater Than", "Less Than", "Greater Than or Equal", "Less Than or Equal"]
+        comparison_op = ["Integer Literal", "Float Literal", "Variable Identifier"]
+        relational = ["Min", "Max"]
 
         if self.current_token()[1] in math:
             return self.math()
         elif self.current_token()[1] in boolean:
             return self.boolean()
         elif self.current_token()[1] in comparison:
-            # NOTE: <comparison> has some similarities with <ralational> so we must account for that
+            # NOTE: <comparison> has some similarities with <relational> so we must account for that
             operator = self.current_token()[1]
             self.consume(operator)
-            if self.current_token()[1] in ["Integer Literal", "Float Literal", "Variable Identifier"] and self.next_token()[1] == "Another One Keyword":
+            if self.current_token()[1] in comparison_op and self.next_token()[1] == "Another One Keyword" and self.next_next_token()[1] in comparison_op:
                 self.comparison(operator)
-            elif self.current_token()[1] in ["Integer Literal", "Float Literal", "Variable Identifier"] and self.next_token()[1] in ["Min", "Max"]:
+            elif self.current_token()[1] in comparison_op and self.next_token()[1] == "Another One Keyword" and self.next_next_token()[1] in relational:
                 self.relational(operator)
         elif self.expect("Concatenation"):
             return self.concatenate()
@@ -805,7 +809,7 @@ class Parser:
     
     def relational(self, operator):
         """
-        <relational> ::= <compoperator> numbr <reloperator> numbr AN numbr |
+        <relational> ::= <compoperator> <reloperator> numbr AN numbr |
                          <compoperator> numbar <reloperator> numbar AN numbar
         <compoperator> ::= BOTH SAEM | DIFFRINT
                             (equal)    (not equal)
@@ -813,6 +817,7 @@ class Parser:
                             (max)    (min)
         """
         left = self.operand()
+        self.consume("Another One Keyword")
         rel_op = None
         if operator == "Equal":
             if self.expect("Max"):
@@ -829,12 +834,13 @@ class Parser:
                 self.consume("Max")
             elif self.expect("Min"):
                 rel_op = "Less Than"
-                self.consume
+                self.consume("Min")
             else:
                 raise SyntaxError(f"Expected a relational operator, found {self.current_token()}")
         else:
             raise SyntaxError(f"Expected a comparison operator, found {self.current_token()}")
 
+        self.consume("First One Keyword")
         left_again = self.operand()
         if left == left_again:
             self.consume("Another One Keyword", "AN")
