@@ -26,7 +26,7 @@ class Parser:
         if self.expect(classification, lexeme):
             self.current_index += 1
         else:
-            raise SyntaxError(f"Expected {classification} {lexeme} but found {self.current_token()} at line {self.current_token()[2]}")
+            raise SyntaxError(f"Expected {classification} {lexeme} but found {self.current_token()} at line {self.current_token()[2]} with next token {self.next_token()}")
 
     def program(self):
         """
@@ -224,13 +224,14 @@ class Parser:
         <typecast> ::= MAEK varident <type>
         <type> ::= A TROOF | A NUMBR | A NUMBAR | YARN
         """
-        self.consume("Typecast", "MAEK")
+        self.consume("Typecasting Declaration")
+        self.consume("Typecasting Assignment")
         if self.expect("Variable Identifier"):
             varident = self.current_token()[0]
             self.consume("Variable Identifier")
-            if self.expect("Type"):
+            if self.expect("Type Literal"):
                 type = self.current_token()[0]
-                self.consume("Type")
+                self.consume("Type Literal")
                 return {"type": "Typecast", "variable": varident, "type": type}
             else:
                 raise SyntaxError(f"Expected a type after 'MAEK', found {self.current_token()}")
@@ -244,11 +245,11 @@ class Parser:
         if self.expect("Variable Identifier"):
             varident = self.current_token()[0]
             self.consume("Variable Identifier")
-            if self.expect("Variable Assignment"):
-                self.consume("Variable Assignment")
-                if self.expect("Type"):
+            if self.expect("Typecasting Reassignment"):
+                self.consume("Typecasting Reassignment")
+                if self.expect("Type Literal"):
                     type = self.current_token()[0]
-                    self.consume("Type")
+                    self.consume("Type Literal")
                     return {"type": "Retype", "variable": varident, "type": type}
                 else:
                     raise SyntaxError(f"Expected a type after 'IS NOW', found {self.current_token()}")
@@ -454,7 +455,7 @@ class Parser:
                     statements.append(self.print())
                 elif self.expect("Input Keyword"):  #GIMMEH keyword (scan)
                     statements.append(self.scan())
-                elif self.expect("Variable Identifier"):  #(assignment)
+                elif self.expect("Variable Identifier") and self.next_token()[1] == "Variable Reassignment":  #(assignment)
                     statements.append(self.assignment())
                 elif self.current_token()[1] in expr_ops:  #(expr)
                     statements.append(self.expr())
@@ -462,7 +463,7 @@ class Parser:
                     statements.append(self.concatenate())
                 elif self.expect("Typecast", "MAEK"):  #MAEK keyword (typecast)
                     statements.append(self.typecast())
-                elif self.expect("Variable Identifier"):  #IS NOW A keyword (retype)
+                elif self.expect("Variable Identifier") and self.next_token()[1] == "Typecasting Reassignment":  #IS NOW A keyword (retype)
                     statements.append(self.retype())
                 elif self.expect("Function Call Delimiter", "I IZ"):  #I IZ keyword (funccall)
                     statements.append(self.funccall())
@@ -481,7 +482,7 @@ class Parser:
                 elif self.expect("Multiline Comment Delimiter", "TLDR"):
                     raise SyntaxError(f"Unexpected TLDR found at line {self.current_token()[2]}, no OBTW found before it.")
                 else:
-                    raise SyntaxError(f"Unexpected token in statement: {self.current_token()}")
+                    raise SyntaxError(f"Unexpected token in statement: {self.current_token()}, with next token {self.next_token()}")
                 
         if self.current_token() is None:
             raise SyntaxError("No KTHXBYE found, missing code delimiter.")
@@ -590,7 +591,7 @@ class Parser:
             else:
                 raise SyntaxError(f"Expected an operand or expression, found {self.current_token()}")
         return concat
-    
+     
     def scan(self):
         """
         <scan> ::= GIMMEH varident
@@ -628,6 +629,7 @@ class Parser:
     def assignment(self):
         """
         <assignment> ::= varident R <operand> | varident R <expr>
+                            varident R <typecast>
         """
         if self.expect("Variable Identifier"):
             varident = self.current_token()[0]
@@ -639,6 +641,10 @@ class Parser:
                 value = self.operand()
             elif self.current_token()[1] in expression:
                 value = self.expr()
+            elif self.expect("Concatenation"):
+                value = self.concatenate()
+            elif self.expect("Typecasting Declaration"):
+                value = self.typecast()
             else:
                 raise SyntaxError(f"Expected an operand or expression, found {self.current_token()}")
             self.consume("Linebreak")
@@ -683,12 +689,14 @@ class Parser:
     def boolean(self):
         """
         <boolean> ::=   <booloperator> OF <operand> AN <operand> |
-                        <boolmulti> OF <booleanexpr> <booleanext> MKAY
+                        <boolmulti> OF <booleanexpr> <booleanext> MKAY |
+                        NOT <operand>
         <booloperator> ::= BOTH | EITHER | WON
         <boolmulti> ::= ALL | ANY
         """
         bool_ops = ["And", "Or", "Xor"]
         bool_multi = ["All", "Any"]
+        
         if self.current_token()[1] in bool_ops:
             operator = self.current_token()[1]
             self.consume(operator)
@@ -713,14 +721,23 @@ class Parser:
                 "left": left,
                 "right": self.booleanext()
             }
+        elif self.expect("Not", "NOT"):
+            self.consume("Not", "NOT")
+            operand = self.operand()
+            return {
+                "type": "Boolean",
+                "operator": "Not",
+                "operand": operand
+            }
         else:
             raise SyntaxError(f"Expected a boolean operator, found {self.current_token()}")
         
     def booleanexpr(self):
         """
-        <booleanexpr> ::= <booloperator> OF <operand> AN <operand> | NOT <operand>
+        <booleanexpr> ::= <booloperator> OF <operand> AN <operand> | NOT <operand> | <operand>
         """
         bool_ops = ["And", "Or", "Xor"]
+        operand = ["Variable Identifier", "Integer Literal", "Float Literal", "String Delimiter", "Boolean Literal"]
         if self.current_token()[1] in bool_ops:
             operator = self.current_token()[1]
             self.consume(operator)
@@ -740,6 +757,12 @@ class Parser:
             return {
                 "type": "Boolean",
                 "operator": "Not",
+                "operand": operand
+            }
+        elif self.current_token()[1] in operand:
+            operand = self.operand()
+            return {
+                "type": "Operand",
                 "operand": operand
             }
         else:
@@ -842,11 +865,15 @@ class Parser:
         <concatexten> ::= AN <operand> | AN <operand> <concatexten>
         """
         operand = ["Variable Identifier", "Integer Literal", "Float Literal", "String Delimiter", "Boolean Literal"]
+        expression = ["Add", "Subtract", "Multiply", "Divide", "Modulo", "Max", "Min", "And", "Or", "Xor", "Not", "Any", "All", "Equal", "Not Equal"]
+        
         concat = []
         while self.expect("Another One Keyword", "AN"):
             self.consume("Another One Keyword", "AN")
             if self.current_token()[1] in operand or self.current_token()[0] == "NOOB":
                 concat.append(self.operand())
+            elif self.current_token()[1] in expression:
+                concat.append(self.expr())
 
     def variable(self):
         """
