@@ -42,8 +42,10 @@ class Parser:
         if self.expect("Code Delimiter", "HAI"):
             self.consume("Code Delimiter", "HAI")
             self.consume("Linebreak")
-            # if self.expect("Comment"):
-            #     self.comment()    
+            if self.expect("Comment"):
+                self.comment()
+            elif self.expect("Multiline Comment Delimiter", "OBTW"):    
+                self.multcomment()
             if self.expect("Variable Delimiter", "WAZZUP"):
                 self.ast["main_program"] = {"type": "Program", "variables": self.variable(), "statements": self.statement()}
             else:
@@ -895,7 +897,10 @@ class Parser:
                         #varident | <literal>
                         if self.current_token()[1] in literal_varident or self.current_token()[0] == "NOOB":
                             value = self.operand()
-                            self.consume("Linebreak")
+                            if self.expect("Comment"):
+                                self.comment()
+                            else:
+                                self.consume("Linebreak")
                             vardefs.append({
                                 "type": "Variable Definition",
                                 "name": varident,
@@ -907,7 +912,10 @@ class Parser:
                         #<expr>
                         elif self.current_token()[1] in expression:
                             value = self.expr()
-                            self.consume("Linebreak")
+                            if self.expect("Comment"):
+                                self.comment()
+                            else:
+                                self.consume("Linebreak")
                             vardefs.append({
                                 "type": "Variable Definition",
                                 "name": varident,
@@ -916,6 +924,14 @@ class Parser:
                             # self.symbol_table[varident] = value["value"]
                         else:
                             raise SyntaxError(f"Expected a literal, expression or linebreak, found {self.current_token()}")
+                    elif self.expect("Comment"):
+                        self.comment()
+                        vardefs.append({
+                            "type": "Variable Declaration",
+                            "name": varident,
+                            "value": {"type": "Variable Definition", "value": "NOOB", "classification": "Type Literal"}
+                        })
+                        self.symbol_table[varident] = ("Noob Keyword", "NOOB")
                     elif self.expect("Linebreak"):
                         self.consume("Linebreak")
                         vardefs.append({
@@ -928,6 +944,10 @@ class Parser:
                         raise SyntaxError(f"Expected a variable assignment or linebreak, found {self.current_token()}")
                 else:
                     raise SyntaxError(f"Expected a variable identifier, found {self.current_token()}")
+            elif self.expect("Comment"):
+                self.comment()
+            elif self.expect("Multiline Comment Delimiter", "OBTW"):
+                self.multcomment()
             else:
                 raise SyntaxError(f"Expected a variable declaration, found {self.current_token()}")
             
