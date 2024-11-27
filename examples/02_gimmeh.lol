@@ -1,8 +1,9 @@
-HAI
-    BTW variable dec
+HAI 
+BTW comment
+WAZZUP 
     I HAS A monde
     I HAS A num ITZ 17
-    
+BUHBYE
     GIMMEH monde
 
     VISIBLE SUM OF monde AN num

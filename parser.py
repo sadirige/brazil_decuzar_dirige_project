@@ -42,6 +42,8 @@ class Parser:
         if self.expect("Code Delimiter", "HAI"):
             self.consume("Code Delimiter", "HAI")
             self.consume("Linebreak")
+            # if self.expect("Comment"):
+            #     self.comment()    
             if self.expect("Variable Delimiter", "WAZZUP"):
                 self.ast["main_program"] = {"type": "Program", "variables": self.variable(), "statements": self.statement()}
             else:
