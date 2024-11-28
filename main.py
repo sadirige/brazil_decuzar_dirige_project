@@ -1,21 +1,5 @@
 '''
 This part is the main file where the GUI is loaded for the Interpreter
-
-References:
-1. Sample Graphical User Interface (GUI) from Project Specifications
-2. OOP use of tkinter - CMSC 170 Exer 1 (8-Puzzle Game) Template
-3. Allow Text editor, List of Tokens & Symbol Table to be horizontally resizable
-   Allow (Text editor, List of Tokens & Symbol Table) and console to be vertically resizable
-        https://www.geeksforgeeks.org/python-panedwindow-widget-in-tkinter/
-        https://ultrapythonic.com/tkinter-panedwindow/
-4. Adding hover effect on buttons
-        https://www.geeksforgeeks.org/tkinter-button-that-changes-its-properties-on-hover/
-5. Initializing root window to maximized state
-        https://blog.finxter.com/5-best-ways-to-initialize-a-window-as-maximized-in-tkinter-python/
-   Use of try except for different ways to maximize root window since some methods work on other devices while others don't
-        https://stackoverflow.com/questions/15981000/tkinter-python-maximize-window
-6. Add line numbers beside Text Editor for better UX
-        https://stackoverflow.com/questions/16369470/tkinter-adding-line-number-to-text-widget
 '''
 import tkinter as tk
 from tkinter import filedialog, ttk, PanedWindow
@@ -73,15 +57,24 @@ class InterpreterApp:
         #(2) Text editor - Allows you to view the code you want to run. The text editor should be editable, and edits done should be reflected once the code is run.
         text_editor_part = tk.Frame(self.horizontal_pw)
         self.line_numbers = tk.Text(text_editor_part, width=4, padx=5, border=0, background="lightgray", state="disabled", wrap="none")
-        self.line_numbers.pack(side="left", fill="y")
+        self.line_numbers.pack(side="left", fill="y") #Add line numbers beside each line of lolcode on text editor
+        editor_scrollbar = tk.Frame(text_editor_part)
+        editor_scrollbar.pack(side="right", fill="both", expand=True) #Create a frame for text editor and a scrollbar on its right
         self.text_editor = tk.Text(text_editor_part, wrap="none", undo=True)
-        self.text_editor.pack(side="right", fill="both", expand=True)
+        self.text_editor.pack(side="left", fill="both", expand=True)
+        scrollbar = tk.Scrollbar(editor_scrollbar, command=self.sync_scroll) 
+        scrollbar.pack(side="right", fill="y")
+        self.text_editor.configure(yscrollcommand=scrollbar.set)
+
+        #Synchronize vertical scrolling between line numbers and text editor, meaning if you scroll one, the other will scroll too
+        self.line_numbers.bind("<MouseWheel>", self.on_mouse_scroll) 
+        self.text_editor.bind("<MouseWheel>", self.on_mouse_scroll)
+
+        #Define horizontal scrolling since its functionality is removed once we customized the vertical scrolling
+        self.text_editor.bind("<Shift-MouseWheel>", self.on_horizontal_scroll)
 
         #Bind events to update line numbers counting the lines in the text editor
         self.text_editor.bind("<KeyRelease>", self.update_line_numbers)
-        self.text_editor.bind("<MouseWheel>", self.update_line_numbers)
-        self.text_editor.bind("<ButtonRelease-1>", self.update_line_numbers)
-        
         self.update_line_numbers() # Initialize line numbers
         self.horizontal_pw.add(text_editor_part) #Add text editor to the horizontal paned window so it can be resized left and right later on
 
@@ -132,6 +125,35 @@ class InterpreterApp:
         self.root.grid_rowconfigure(2, weight=1)
 
     # -----------------------------------------------------------------------------------------
+    # Synchronizes vertical scrolling between line numbers and text editor using the scrollbar widget
+    # -----------------------------------------------------------------------------------------
+    def sync_scroll(self, *args):
+        self.line_numbers.yview(*args)
+        self.text_editor.yview(*args)
+
+    # -----------------------------------------------------------------------------------------
+    # Synchronizes vertical scrolling between line numbers and text editor using the mouse wheel
+    # -----------------------------------------------------------------------------------------
+    def on_mouse_scroll(self, event):
+        if event.widget == self.line_numbers:
+            delta = -1 if event.delta > 0 else 1
+            self.line_numbers.yview_scroll(delta, "units")
+            self.text_editor.yview_moveto(self.line_numbers.yview()[0])
+        elif event.widget == self.text_editor:
+            delta = -1 if event.delta > 0 else 1
+            self.text_editor.yview_scroll(delta, "units")
+            self.line_numbers.yview_moveto(self.text_editor.yview()[0])
+        return "break"
+
+    # -----------------------------------------------------------------------------------------
+    # Handles horizontal scrolling in the text editor (has to be defined since vertical scolling was defined)
+    # -----------------------------------------------------------------------------------------
+    def on_horizontal_scroll(self, event):
+        delta = -1 if event.delta > 0 else 1
+        self.text_editor.xview_scroll(delta, "units")
+        return "break" 
+
+    # -----------------------------------------------------------------------------------------
     # Adds line numbers beside each line of lolcode in the text editor part
     # -----------------------------------------------------------------------------------------
     def update_line_numbers(self, event=None):
@@ -153,7 +175,7 @@ class InterpreterApp:
         button.bind("<Enter>", lambda _: button.config(bg="darkgray"))
         
         #go back to usual color of tkinter button when arrow is not on button
-        button.bind("<Leave>", lambda _: button.config(bg="gray"))
+        button.bind("<Leave>", lambda _: button.config(bg="SystemButtonFace"))
 
     # -----------------------------------------------------------------------------------------
     # Initializes the parts of the GUI at the start of program (50-50 vertical, 33-33-33 horizontal) paned windows
@@ -196,11 +218,13 @@ class InterpreterApp:
     #   (4) Symbol Table – This should be updated every time the Execute/Run button (5) is pressed. 
     # -----------------------------------------------------------------------------------------
     def execute_code(self):
-        #Clear previous lexemes and symbols
+        #Clear previous lexemes, symbols, and console output
         for item in self.lexemes.get_children():
             self.lexemes.delete(item)
         for item in self.symbols.get_children():
             self.symbols.delete(item)
+        self.console_part.config(state="normal")
+        self.console_part.delete(1.0, tk.END)
 
         #Get a copy of the lolcode from the text editor
         lolcode = self.text_editor.get("1.0", tk.END).splitlines()
@@ -232,11 +256,10 @@ class InterpreterApp:
         #3. If syntax is correct (there is a Generated AST from syntax analysis), perform semantic analysis
         else:
             #semantic analysis
-            print("success")
-            # print(ast)
-            semantic = SemanticAnalyzer(ast[1])
-            output = semantic.run()
-            self.display_console(output)
+            # print("success")
+            print(ast)
+            semantic = SemanticAnalyzer(symbol_table, ast[1], self.console_part)
+            semantic.run()
 
     # -----------------------------------------------------------------------------------------
     # Updates the Lexemes part of the GUI once the lines of the lolcode in the text editor are tokenized
@@ -256,8 +279,8 @@ class InterpreterApp:
     # -----------------------------------------------------------------------------------------
     # Updates the Symbol Table part of the GUI once the tokens' syntax are checked
     # -----------------------------------------------------------------------------------------
-    def display_symbol_table(self, symbolTable):
-        for variable, (_, value) in symbolTable.items():
+    def display_symbol_table(self, symbol_table):
+        for variable, (_, value) in symbol_table.items():
             self.symbols.insert('', tk.END, values=(variable, value))
 
     def display_console(self, output):
