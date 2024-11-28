@@ -153,7 +153,7 @@ class InterpreterApp:
         button.bind("<Enter>", lambda _: button.config(bg="darkgray"))
         
         #go back to usual color of tkinter button when arrow is not on button
-        button.bind("<Leave>", lambda _: button.config(bg="SystemButtonFace"))
+        button.bind("<Leave>", lambda _: button.config(bg="gray"))
 
     # -----------------------------------------------------------------------------------------
     # Initializes the parts of the GUI at the start of program (50-50 vertical, 33-33-33 horizontal) paned windows
@@ -212,7 +212,11 @@ class InterpreterApp:
 
         #1. Tokenize each line in lolcode and display in the list of tokens (lexemes) - LEXICAL ANALYSIS
         lexemes = tokenize(lolcode)
-        print(lexemes)
+
+        for i in lexemes:
+            print(i)
+        # print(lexemes)
+        
         self.display_lexemes(lexemes)
 
         #2. Convert tokens to symbol table - SYNTAX ANALYSIS
@@ -229,7 +233,7 @@ class InterpreterApp:
         else:
             #semantic analysis
             print("success")
-            print(ast)
+            # print(ast)
             semantic = SemanticAnalyzer(ast[1])
             output = semantic.run()
             self.display_console(output)

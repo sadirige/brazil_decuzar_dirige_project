@@ -17,6 +17,9 @@ class Parser:
     
     def next_token(self):
         return self.tokens[self.current_index + 1] if self.current_index + 1 < len(self.tokens) else None
+    
+    def next_next_token(self):
+        return self.tokens[self.current_index + 2] if self.current_index + 2 < len(self.tokens) else None
 
     def expect(self, classification, lexeme=None):
         token = self.current_token()
@@ -26,7 +29,7 @@ class Parser:
         if self.expect(classification, lexeme):
             self.current_index += 1
         else:
-            raise SyntaxError(f"Expected {classification} {lexeme} but found {self.current_token()} at line {self.current_token()[2]}")
+            raise SyntaxError(f"Expected {classification} {lexeme} but found {self.current_token()} at line {self.current_token()[2]} with next token {self.next_token()}")
 
     def program(self):
         """
@@ -42,6 +45,10 @@ class Parser:
         if self.expect("Code Delimiter", "HAI"):
             self.consume("Code Delimiter", "HAI")
             self.consume("Linebreak")
+            if self.expect("Comment"):
+                self.comment()
+            elif self.expect("Multiline Comment Delimiter", "OBTW"):    
+                self.multcomment()
             if self.expect("Variable Delimiter", "WAZZUP"):
                 self.ast["main_program"] = {"type": "Program", "variables": self.variable(), "statements": self.statement()}
             else:
@@ -220,13 +227,14 @@ class Parser:
         <typecast> ::= MAEK varident <type>
         <type> ::= A TROOF | A NUMBR | A NUMBAR | YARN
         """
-        self.consume("Typecast", "MAEK")
+        self.consume("Typecasting Declaration")
+        self.consume("Typecasting Assignment")
         if self.expect("Variable Identifier"):
             varident = self.current_token()[0]
             self.consume("Variable Identifier")
-            if self.expect("Type"):
+            if self.expect("Type Literal"):
                 type = self.current_token()[0]
-                self.consume("Type")
+                self.consume("Type Literal")
                 return {"type": "Typecast", "variable": varident, "type": type}
             else:
                 raise SyntaxError(f"Expected a type after 'MAEK', found {self.current_token()}")
@@ -240,11 +248,11 @@ class Parser:
         if self.expect("Variable Identifier"):
             varident = self.current_token()[0]
             self.consume("Variable Identifier")
-            if self.expect("Variable Assignment"):
-                self.consume("Variable Assignment")
-                if self.expect("Type"):
+            if self.expect("Typecasting Reassignment"):
+                self.consume("Typecasting Reassignment")
+                if self.expect("Type Literal"):
                     type = self.current_token()[0]
-                    self.consume("Type")
+                    self.consume("Type Literal")
                     return {"type": "Retype", "variable": varident, "type": type}
                 else:
                     raise SyntaxError(f"Expected a type after 'IS NOW', found {self.current_token()}")
@@ -450,7 +458,7 @@ class Parser:
                     statements.append(self.print())
                 elif self.expect("Input Keyword"):  #GIMMEH keyword (scan)
                     statements.append(self.scan())
-                elif self.expect("Variable Identifier"):  #(assignment)
+                elif self.expect("Variable Identifier") and self.next_token()[1] == "Variable Reassignment":  #(assignment)
                     statements.append(self.assignment())
                 elif self.current_token()[1] in expr_ops:  #(expr)
                     statements.append(self.expr())
@@ -458,7 +466,7 @@ class Parser:
                     statements.append(self.concatenate())
                 elif self.expect("Typecast", "MAEK"):  #MAEK keyword (typecast)
                     statements.append(self.typecast())
-                elif self.expect("Variable Identifier"):  #IS NOW A keyword (retype)
+                elif self.expect("Variable Identifier") and self.next_token()[1] == "Typecasting Reassignment":  #IS NOW A keyword (retype)
                     statements.append(self.retype())
                 elif self.expect("Function Call Delimiter", "I IZ"):  #I IZ keyword (funccall)
                     statements.append(self.funccall())
@@ -477,7 +485,7 @@ class Parser:
                 elif self.expect("Multiline Comment Delimiter", "TLDR"):
                     raise SyntaxError(f"Unexpected TLDR found at line {self.current_token()[2]}, no OBTW found before it.")
                 else:
-                    raise SyntaxError(f"Unexpected token in statement: {self.current_token()}")
+                    raise SyntaxError(f"Unexpected token in statement: {self.current_token()}, with next token {self.next_token()}")
                 
         if self.current_token() is None:
             raise SyntaxError("No KTHXBYE found, missing code delimiter.")
@@ -547,19 +555,20 @@ class Parser:
         math = ["Add", "Subtract", "Multiply", "Divide", "Modulo", "Max", "Min"]
         boolean = ["And", "Or", "Xor", "Not", "Any", "All"]
         comparison = ["Equal", "Not Equal"]
-        # relational = ["Greater Than", "Less Than", "Greater Than or Equal", "Less Than or Equal"]
+        comparison_op = ["Integer Literal", "Float Literal", "Variable Identifier"]
+        relational = ["Min", "Max"]
 
         if self.current_token()[1] in math:
             return self.math()
         elif self.current_token()[1] in boolean:
             return self.boolean()
         elif self.current_token()[1] in comparison:
-            # NOTE: <comparison> has some similarities with <ralational> so we must account for that
+            # NOTE: <comparison> has some similarities with <relational> so we must account for that
             operator = self.current_token()[1]
             self.consume(operator)
-            if self.current_token()[1] in ["Integer Literal", "Float Literal", "Variable Identifier"] and self.next_token()[1] == "Another One Keyword":
+            if self.current_token()[1] in comparison_op and self.next_token()[1] == "Another One Keyword" and self.next_next_token()[1] in comparison_op:
                 self.comparison(operator)
-            elif self.current_token()[1] in ["Integer Literal", "Float Literal", "Variable Identifier"] and self.next_token()[1] in ["Min", "Max"]:
+            elif self.current_token()[1] in comparison_op and self.next_token()[1] == "Another One Keyword" and self.next_next_token()[1] in relational:
                 self.relational(operator)
         elif self.expect("Concatenation"):
             return self.concatenate()
@@ -586,7 +595,7 @@ class Parser:
             else:
                 raise SyntaxError(f"Expected an operand or expression, found {self.current_token()}")
         return concat
-    
+     
     def scan(self):
         """
         <scan> ::= GIMMEH varident
@@ -624,6 +633,7 @@ class Parser:
     def assignment(self):
         """
         <assignment> ::= varident R <operand> | varident R <expr>
+                            varident R <typecast>
         """
         if self.expect("Variable Identifier"):
             varident = self.current_token()[0]
@@ -635,6 +645,10 @@ class Parser:
                 value = self.operand()
             elif self.current_token()[1] in expression:
                 value = self.expr()
+            elif self.expect("Concatenation"):
+                value = self.concatenate()
+            elif self.expect("Typecasting Declaration"):
+                value = self.typecast()
             else:
                 raise SyntaxError(f"Expected an operand or expression, found {self.current_token()}")
             self.consume("Linebreak")
@@ -679,12 +693,14 @@ class Parser:
     def boolean(self):
         """
         <boolean> ::=   <booloperator> OF <operand> AN <operand> |
-                        <boolmulti> OF <booleanexpr> <booleanext> MKAY
+                        <boolmulti> OF <booleanexpr> <booleanext> MKAY |
+                        NOT <operand>
         <booloperator> ::= BOTH | EITHER | WON
         <boolmulti> ::= ALL | ANY
         """
         bool_ops = ["And", "Or", "Xor"]
         bool_multi = ["All", "Any"]
+        
         if self.current_token()[1] in bool_ops:
             operator = self.current_token()[1]
             self.consume(operator)
@@ -709,14 +725,23 @@ class Parser:
                 "left": left,
                 "right": self.booleanext()
             }
+        elif self.expect("Not", "NOT"):
+            self.consume("Not", "NOT")
+            operand = self.operand()
+            return {
+                "type": "Boolean",
+                "operator": "Not",
+                "operand": operand
+            }
         else:
             raise SyntaxError(f"Expected a boolean operator, found {self.current_token()}")
         
     def booleanexpr(self):
         """
-        <booleanexpr> ::= <booloperator> OF <operand> AN <operand> | NOT <operand>
+        <booleanexpr> ::= <booloperator> OF <operand> AN <operand> | NOT <operand> | <operand>
         """
         bool_ops = ["And", "Or", "Xor"]
+        operand = ["Variable Identifier", "Integer Literal", "Float Literal", "String Delimiter", "Boolean Literal"]
         if self.current_token()[1] in bool_ops:
             operator = self.current_token()[1]
             self.consume(operator)
@@ -736,6 +761,12 @@ class Parser:
             return {
                 "type": "Boolean",
                 "operator": "Not",
+                "operand": operand
+            }
+        elif self.current_token()[1] in operand:
+            operand = self.operand()
+            return {
+                "type": "Operand",
                 "operand": operand
             }
         else:
@@ -778,7 +809,7 @@ class Parser:
     
     def relational(self, operator):
         """
-        <relational> ::= <compoperator> numbr <reloperator> numbr AN numbr |
+        <relational> ::= <compoperator> <reloperator> numbr AN numbr |
                          <compoperator> numbar <reloperator> numbar AN numbar
         <compoperator> ::= BOTH SAEM | DIFFRINT
                             (equal)    (not equal)
@@ -786,6 +817,7 @@ class Parser:
                             (max)    (min)
         """
         left = self.operand()
+        self.consume("Another One Keyword")
         rel_op = None
         if operator == "Equal":
             if self.expect("Max"):
@@ -802,12 +834,13 @@ class Parser:
                 self.consume("Max")
             elif self.expect("Min"):
                 rel_op = "Less Than"
-                self.consume
+                self.consume("Min")
             else:
                 raise SyntaxError(f"Expected a relational operator, found {self.current_token()}")
         else:
             raise SyntaxError(f"Expected a comparison operator, found {self.current_token()}")
 
+        self.consume("First One Keyword")
         left_again = self.operand()
         if left == left_again:
             self.consume("Another One Keyword", "AN")
@@ -838,11 +871,15 @@ class Parser:
         <concatexten> ::= AN <operand> | AN <operand> <concatexten>
         """
         operand = ["Variable Identifier", "Integer Literal", "Float Literal", "String Delimiter", "Boolean Literal"]
+        expression = ["Add", "Subtract", "Multiply", "Divide", "Modulo", "Max", "Min", "And", "Or", "Xor", "Not", "Any", "All", "Equal", "Not Equal"]
+        
         concat = []
         while self.expect("Another One Keyword", "AN"):
             self.consume("Another One Keyword", "AN")
             if self.current_token()[1] in operand or self.current_token()[0] == "NOOB":
                 concat.append(self.operand())
+            elif self.current_token()[1] in expression:
+                concat.append(self.expr())
 
     def variable(self):
         """
@@ -893,7 +930,10 @@ class Parser:
                         #varident | <literal>
                         if self.current_token()[1] in literal_varident or self.current_token()[0] == "NOOB":
                             value = self.operand()
-                            self.consume("Linebreak")
+                            if self.expect("Comment"):
+                                self.comment()
+                            else:
+                                self.consume("Linebreak")
                             vardefs.append({
                                 "type": "Variable Definition",
                                 "name": varident,
@@ -905,7 +945,10 @@ class Parser:
                         #<expr>
                         elif self.current_token()[1] in expression:
                             value = self.expr()
-                            self.consume("Linebreak")
+                            if self.expect("Comment"):
+                                self.comment()
+                            else:
+                                self.consume("Linebreak")
                             vardefs.append({
                                 "type": "Variable Definition",
                                 "name": varident,
@@ -914,6 +957,14 @@ class Parser:
                             # self.symbol_table[varident] = value["value"]
                         else:
                             raise SyntaxError(f"Expected a literal, expression or linebreak, found {self.current_token()}")
+                    elif self.expect("Comment"):
+                        self.comment()
+                        vardefs.append({
+                            "type": "Variable Declaration",
+                            "name": varident,
+                            "value": {"type": "Variable Definition", "value": "NOOB", "classification": "Type Literal"}
+                        })
+                        self.symbol_table[varident] = ("Noob Keyword", "NOOB")
                     elif self.expect("Linebreak"):
                         self.consume("Linebreak")
                         vardefs.append({
@@ -926,6 +977,12 @@ class Parser:
                         raise SyntaxError(f"Expected a variable assignment or linebreak, found {self.current_token()}")
                 else:
                     raise SyntaxError(f"Expected a variable identifier, found {self.current_token()}")
+            elif self.expect("Comment"):
+                self.comment()
+            elif self.expect("Multiline Comment Delimiter", "OBTW"):
+                self.multcomment()
+            elif self.expect("Linebreak"):
+                self.consume("Linebreak")
             else:
                 raise SyntaxError(f"Expected a variable declaration, found {self.current_token()}")
             
