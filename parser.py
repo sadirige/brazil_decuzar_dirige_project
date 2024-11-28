@@ -705,15 +705,32 @@ class Parser:
             operator = self.current_token()[1]
             self.consume(operator)
             self.consume("First One Keyword", "OF")
-            left = self.operand()
+
+            if self.current_token()[1] in bool_ops:
+                left = self.booleanexpr()
+            elif self.expect("Not", "NOT"):
+                self.consume("Not", "NOT")
+                left = self.operand()
+            else:
+                left = self.operand()
+            
             self.consume("Another One Keyword", "AN")
-            right = self.operand()
+            
+            if self.current_token()[1] in bool_ops:
+                right = self.booleanexpr()
+            elif self.expect("Not", "NOT"):
+                self.consume("Not", "NOT")
+                right = self.operand()
+            else:
+                right = self.operand()
+            
             return {
                 "type": "Boolean",
                 "operator": operator,
                 "left": left,
                 "right": right
             }
+        
         elif self.current_token()[1] in bool_multi:
             operator = self.current_token()[1]
             self.consume(operator)
@@ -738,23 +755,44 @@ class Parser:
         
     def booleanexpr(self):
         """
-        <booleanexpr> ::= <booloperator> OF <operand> AN <operand> | NOT <operand> | <operand>
+        <booleanexpr> ::= <booloperator> OF <operand> AN <operand> | NOT <operand> |
+                            <booloperator> OF <boolexpr> AN <operand> |
+                            <booloperator> OF <operand> AN <boolexpr> |
+                            <booloperator> OF <boolexpr> AN <boolexpr> |
         """
         bool_ops = ["And", "Or", "Xor"]
         operand = ["Variable Identifier", "Integer Literal", "Float Literal", "String Delimiter", "Boolean Literal"]
+  
         if self.current_token()[1] in bool_ops:
             operator = self.current_token()[1]
             self.consume(operator)
             self.consume("First One Keyword", "OF")
-            left = self.operand()
+
+            if self.current_token()[1] in bool_ops:
+                left = self.booleanexpr()
+            elif self.expect("Not", "NOT"):
+                self.consume("Not", "NOT")
+                left = self.operand()
+            else:
+                left = self.operand()
+
             self.consume("Another One Keyword", "AN")
-            right = self.operand()
+
+            if self.current_token()[1] in bool_ops:
+                right = self.booleanexpr()
+            elif self.expect("Not", "NOT"):
+                self.consume("Not", "NOT")
+                right = self.operand()
+            else:
+                right = self.operand()
+
             return {
                 "type": "Boolean",
                 "operator": operator,
                 "left": left,
                 "right": right
             }
+        
         elif self.expect("Boolean Operator", "Not"):
             self.consume("Boolean Operator", "Not")
             operand = self.operand()
@@ -763,12 +801,26 @@ class Parser:
                 "operator": "Not",
                 "operand": operand
             }
+        
         elif self.current_token()[1] in operand:
-            operand = self.operand()
+            left = self.operand()
+
+            self.consume("Another One Keyword", "AN")
+
+            if self.current_token()[1] in bool_ops:
+                right = self.booleanexpr()
+            elif self.expect("Not", "NOT"):
+                self.consume("Not", "NOT")
+                right = self.operand()
+            else:
+                right = self.operand()
+
             return {
-                "type": "Operand",
-                "operand": operand
+                "type": "Boolean",
+                "left": left,
+                "right": right
             }
+
         else:
             raise SyntaxError(f"Expected a boolean operator, found {self.current_token()}")
 
