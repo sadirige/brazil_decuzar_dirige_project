@@ -1,0 +1,15 @@
+GUI References:
+1. Sample Graphical User Interface (GUI) from Project Specifications
+2. OOP use of tkinter - CMSC 170 Exer 1 (8-Puzzle Game) Template
+3. Allow Text editor, List of Tokens & Symbol Table to be horizontally resizable
+   Allow (Text editor, List of Tokens & Symbol Table) and console to be vertically resizable
+        https://www.geeksforgeeks.org/python-panedwindow-widget-in-tkinter/
+        https://ultrapythonic.com/tkinter-panedwindow/
+4. Adding hover effect on buttons
+        https://www.geeksforgeeks.org/tkinter-button-that-changes-its-properties-on-hover/
+5. Initializing root window to maximized state
+        https://blog.finxter.com/5-best-ways-to-initialize-a-window-as-maximized-in-tkinter-python/
+   Use of try except for different ways to maximize root window since some methods work on other devices while others don't
+        https://stackoverflow.com/questions/15981000/tkinter-python-maximize-window
+6. Add line numbers beside Text Editor for better UX
+        https://stackoverflow.com/questions/16369470/tkinter-adding-line-number-to-text-widget
