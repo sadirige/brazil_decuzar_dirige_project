@@ -296,29 +296,20 @@ class Parser:
                     if self.expect("Variable Identifier"):
                         varident = self.current_token()[0]
                         self.consume("Variable Identifier")
-                        if self.expect("Linebreak"):
-                            self.consume("Linebreak")
-                            body = self.loopbody()
-                            self.consume("Loop Delimiter", "IM OUTTA YR")
-                            self.consume("Variable Identifier", loopident)
-                            return {"type": "Loop", "name": loopident, "operation": loopop, "variable": varident, "body": body}
-                        else:
-                            raise SyntaxError(f"Expected a linebreak after variable identifier, found {self.current_token()}")
+                        if self.expect("Loop Until") or self.expect("Loop While"):
+                            loopcond = self.loopcond()
+                            if self.expect("Equal") or self.expect("Not Equal"):
+                                cond = self.conditionals()
+                                if self.expect("Linebreak"):
+                                    self.consume("Linebreak")
+                                    body = self.loopbody()
+                                    self.consume("Loop Delimiter", "IM OUTTA YR")
+                                    self.consume("Variable Identifier", loopident)
+                                    return {"type": "Loop", "name": loopident, "operation": loopop, "condition": loopcond, "loop condition": cond, "variable": varident, "body": body}
+                                else:
+                                    raise SyntaxError(f"Expected a linebreak after variable identifier, found {self.current_token()}")
                     else:
                         raise SyntaxError(f"Expected a variable identifier after loop operation, found {self.current_token()}")
-                elif self.expect("Loop Until") or self.expect("Loop While"):
-                    loopcond = self.loopcond()
-                    expr = self.expr()
-                    if self.expect("Linebreak"):
-                        self.consume("Linebreak")
-                        body = self.loopbody()
-                        self.consume("Loop Delimiter", "IM OUTTA YR")
-                        self.consume("Variable Identifier", loopident)
-                        return {"type": "Loop", "name": loopident, "condition": loopcond, "expression": expr, "body": body}
-                    else:
-                        raise SyntaxError(f"Expected a linebreak after expression, found {self.current_token()}")
-                else:
-                    raise SyntaxError(f"Expected a loop operation or condition after variable identifier, found {self.current_token()}")
             else:
                 raise SyntaxError(f"Expected a variable identifier after 'IM IN YR', found {self.current_token()}")
         else:
@@ -341,6 +332,198 @@ class Parser:
             else:
                 statements.append(self.statement())
         return statements
+    
+    def loopop(self):
+        """
+        <loopop> ::= UPPIN | NERFIN
+        """
+        if self.current_token()[1] == "Increment Keyword":
+            loopop = self.current_token()[0]
+            self.consume("Increment Keyword")
+        elif self.current_token()[1] == "Decrement Keyword":
+            loopop = self.current_token()[0]
+            self.consume("Decrement Keyword")
+        else:
+            raise SyntaxError(f"Expected a loop operation after variable identifier, found {self.current_token()}")
+        
+        return loopop
+    
+    def loopcond(self):
+        """
+        <loopcond> ::= TIL | WILE
+        """
+        if self.current_token()[1] == "Loop Until":
+            loopcond = self.current_token()[0]
+            self.consume("Loop Until")
+        elif self.current_token()[1] == "Loop While":
+            loopcond = self.current_token()[0]
+            self.consume("Loop While")
+        else:
+            raise SyntaxError(f"Expected a loop condition after variable identifier, found {self.current_token()}")
+        
+        return loopcond
+    
+    def conditionals(self):
+        """
+        <conditionals> ::= BOTH SAEM <varident> AN <varident> | BOTH SAEM <math> AN <math> | BOTH SAEM <Integer Literal> AN <Integer Literal> |
+                           BOTH SAEM <varident> AN <Integer Literal> | BOTH SAEM <varident> AN <math> |
+                           DIFFRINT <varident> AN <varident> | DIFFRINT <math> AN <math> | DIFFRINT <Integer Literal> AN <Integer Literal> |
+                           DIFFRINT <varident> AN <Integer Literal> | DIFFRINT <varident> AN <math>
+        """
+        conditionals = []   # The condition (BOTH SAEM or DIFFRINT), variable identifier (if any), math operator (BIGGR or SMALLR if any), and integer literal (if any) are stored and returned
+        
+        if self.expect("Equal") or self.expect("Not Equal"):
+            conditionals.append(self.current_token())
+            if self.expect("Equal"):
+                self.consume("Equal")
+                if self.expect("Variable Identifier"):
+                    self.consume("Variable Identifier")
+                    if self.expect("Another One Keyword"):
+                        self.consume("Another One Keyword")
+                        if self.expect("Variable Identifier"):
+                            conditionals.append(self.current_token())
+                            self.consume("Variable Identifier")
+                        elif self.expect("Max") or self.expect("Min"):
+                            if self.expect("Max"):
+                                conditionals.append(self.math())
+                            elif self.expect("Min"):
+                                conditionals.append(self.math())
+                        elif self.expect("Integer Literal"):
+                            conditionals.append(self.current_token())
+                            self.consume("Integer Literal")
+                    else:
+                        raise SyntaxError(f"Expected another operator and only found one")
+                elif self.expect("Max") or self.expect("Min"):
+                    if self.expect("Max"):
+                        conditionals.append(self.math())
+                        self.consume("Max")
+                        if self.expect("Another One Keyword"):
+                            self.consume("Another One Keyword")
+                            if self.expect("Variable Identifier"):
+                                conditionals.append(self.current_token())
+                                self.consume("Variable Identifier")
+                            elif self.expect("Max") or self.expect("Min"):
+                                if self.expect("Max"):
+                                    conditionals.append(self.math())
+                                elif self.expect("Min"):
+                                    conditionals.append(self.math())
+                            elif self.expect("Integer Literal"):
+                                conditionals.append(self.current_token())
+                                self.consume("Integer Literal")
+                        else:
+                            raise SyntaxError(f"Expected another operator and only found one")
+                    elif self.expect("Min"):
+                        conditionals.append(self.math())
+                        self.consume("Min")
+                        if self.expect("Another One Keyword"):
+                            self.consume("Another One Keyword")
+                            if self.expect("Variable Identifier"):
+                                conditionals.append(self.current_token())
+                                self.consume("Variable Identifier")
+                            elif self.expect("Max") or self.expect("Min"):
+                                if self.expect("Max"):
+                                    conditionals.append(self.math())
+                                elif self.expect("Min"):
+                                    conditionals.append(self.math())
+                            elif self.expect("Integer Literal"):
+                                conditionals.append(self.current_token())
+                                self.consume("Integer Literal")
+                        else:
+                            raise SyntaxError(f"Expected another operator and only found one")
+                elif self.expect("Integer Literal"):
+                    conditionals.append(self.current_token())
+                    self.consume("Integer Literal")
+                    if self.expect("Another One Keyword"):
+                        self.consume("Another One Keyword")
+                        if self.expect("Variable Identifier"):
+                            conditionals.append(self.current_token())
+                            self.consume("Variable Identifier")
+                        elif self.expect("Max") or self.expect("Min"):
+                            if self.expect("Max"):
+                                conditionals.append(self.math())
+                            elif self.expect("Min"):
+                                conditionals.append(self.math())
+                        elif self.expect("Integer Literal"):
+                            conditionals.append(self.current_token())
+                            self.consume("Integer Literal")
+                    else:
+                        raise SyntaxError(f"Expected another operator and only found one")
+            elif self.expect("Not Equal"):
+                self.consume("Not Equal")
+                if self.expect("Variable Identifier"):
+                    self.consume("Variable Identifier")
+                    if self.expect("Another One Keyword"):
+                        self.consume("Another One Keyword")
+                        if self.expect("Variable Identifier"):
+                            conditionals.append(self.current_token())
+                            self.consume("Variable Identifier")
+                        elif self.expect("Max") or self.expect("Min"):
+                            if self.expect("Max"):
+                                conditionals.append(self.math())
+                            elif self.expect("Min"):
+                                conditionals.append(self.math())
+                        elif self.expect("Integer Literal"):
+                            conditionals.append(self.current_token())
+                            self.consume("Integer Literal")
+                    else:
+                        raise SyntaxError(f"Expected another operator and only found one")
+                elif self.expect("Max") or self.expect("Min"):
+                    if self.expect("Max"):
+                        conditionals.append(self.math())
+                        self.consume("Max")
+                        if self.expect("Another One Keyword"):
+                            self.consume("Another One Keyword")
+                            if self.expect("Variable Identifier"):
+                                conditionals.append(self.current_token())
+                                self.consume("Variable Identifier")
+                            elif self.expect("Max") or self.expect("Min"):
+                                if self.expect("Max"):
+                                    conditionals.append(self.math())
+                                elif self.expect("Min"):
+                                    conditionals.append(self.math())
+                            elif self.expect("Integer Literal"):
+                                conditionals.append(self.current_token())
+                                self.consume("Integer Literal")
+                        else:
+                            raise SyntaxError(f"Expected another operator and only found one")
+                    elif self.expect("Min"):
+                        conditionals.append(self.math())
+                        self.consume("Min")
+                        if self.expect("Another One Keyword"):
+                            self.consume("Another One Keyword")
+                            if self.expect("Variable Identifier"):
+                                conditionals.append(self.current_token())
+                                self.consume("Variable Identifier")
+                            elif self.expect("Max") or self.expect("Min"):
+                                if self.expect("Max"):
+                                    conditionals.append(self.math())
+                                elif self.expect("Min"):
+                                    conditionals.append(self.math())
+                            elif self.expect("Integer Literal"):
+                                conditionals.append(self.current_token())
+                                self.consume("Integer Literal")
+                        else:
+                            raise SyntaxError(f"Expected another operator and only found one")
+                elif self.expect("Integer Literal"):
+                    conditionals.append(self.current_token())
+                    self.consume("Integer Literal")
+                    if self.expect("Another One Keyword"):
+                        self.consume("Another One Keyword")
+                        if self.expect("Variable Identifier"):
+                            conditionals.append(self.current_token())
+                            self.consume("Variable Identifier")
+                        elif self.expect("Max") or self.expect("Min"):
+                            if self.expect("Max"):
+                                conditionals.append(self.math())
+                            elif self.expect("Min"):
+                                conditionals.append(self.math())
+                        elif self.expect("Integer Literal"):
+                            conditionals.append(self.current_token())
+                            self.consume("Integer Literal")
+                    else:
+                        raise SyntaxError(f"Expected another operator and only found one")
+        return conditionals
+             
 
     def ifthen(self):
         """
@@ -482,6 +665,8 @@ class Parser:
                     self.multcomment()
                 elif self.expect("Linebreak"):
                     self.consume("Linebreak")
+                    if self.expect("Loop Delimiter", "IM OUTTA YR"):
+                        break
                 elif self.expect("Multiline Comment Delimiter", "TLDR"):
                     raise SyntaxError(f"Unexpected TLDR found at line {self.current_token()[2]}, no OBTW found before it.")
                 else:
