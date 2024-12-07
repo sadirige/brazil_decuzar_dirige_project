@@ -237,14 +237,14 @@ class InterpreterApp:
         #1. Tokenize each line in lolcode and display in the list of tokens (lexemes) - LEXICAL ANALYSIS
         lexemes = tokenize(lolcode)
 
-        for i in lexemes:
-            print(i)
+        # for i in lexemes:
+        #     print(i)
         # print(lexemes)
-        
+
         self.display_lexemes(lexemes)
 
         #2. Convert tokens to symbol table - SYNTAX ANALYSIS
-        parse = Parser(lexemes)
+        parse = Parser(lexemes, self.console_part)
         symbol_table, ast = parse.program()
         self.display_symbol_table(symbol_table)
 

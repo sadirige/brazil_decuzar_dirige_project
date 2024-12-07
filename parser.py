@@ -1,12 +1,13 @@
 '''
-This part is the file containing the syntax analyzer parsing through the lexemes and checking if the syntax is correct.
+This part contains the syntax analyzer; parsing through the lexemes and checking if the syntax is correct.
 '''
-
+import tkinter as tk
 class Parser:
-    def __init__(self, tokens):
+    def __init__(self, tokens, console):
         self.tokens = tokens
+        self.console = console
         self.current_index = 0
-        self.symbol_table = {}      #Variable names and their values, including function calls
+        self.symbol_table = {}      
         self.ast = {
             "functions": [],        #Comments, Multiline Comments, and Function Definitions before "HAI" and after "KTHXBYE" (functions are what's actually stored, comments are ignoreds)
             "main_program": None,   #Statements between "HAI" and "KTHXBYE"
@@ -21,6 +22,11 @@ class Parser:
     def next_next_token(self):
         return self.tokens[self.current_index + 2] if self.current_index + 2 < len(self.tokens) else None
 
+    def parse_error(self, message):
+        self.console.insert(tk.END, message)
+        return self.symbol_table
+        # raise SyntaxError(message)
+
     def expect(self, classification, lexeme=None):
         token = self.current_token()
         return token and token[1] == classification and token[0] == lexeme if lexeme else token and token[1] == classification
@@ -29,7 +35,8 @@ class Parser:
         if self.expect(classification, lexeme):
             self.current_index += 1
         else:
-            raise SyntaxError(f"Expected {classification} {lexeme} but found {self.current_token()} at line {self.current_token()[2]} with next token {self.next_token()}")
+            token = self.current_token()
+            self.parse_error(f"Syntax Error: Expected '{classification} {lexeme}' but found '{token[0]} {token[1]}' at line {token[2]}.")
 
     def program(self):
         """
@@ -56,7 +63,8 @@ class Parser:
             self.consume("Code Delimiter", "KTHXBYE")
             self.consume("Linebreak")
         else:
-            return self.symbol_table, ("Syntax Error", "No main program found (missing 'HAI').")
+            self.parse_error("Syntax Error: No main program found due to missing HAI at the start of lolcode.")
+            # return self.symbol_table, ("Syntax Error", "No main program found (missing 'HAI').")
 
         #Parse post-program (comments, multiline comments, and function definitions) after 'KTHXBYE'
         while self.current_token():
@@ -81,11 +89,12 @@ class Parser:
             self.consume("Linebreak")
 
         elif self.expect("Multiline Comment Delimiter", "TLDR"):
-            raise SyntaxError(f"Unexpected TLDR found at line {self.current_token()[2]}, no OBTW found before it.")
+            self.parse_error(f"Syntax Error: Unexpected TLDR found at line {self.current_token()[2]}, no OBTW found before it.")
+            # raise SyntaxError(f"Unexpected TLDR found at line {self.current_token()[2]}, no OBTW found before it.")
 
         else:
             if program_delimiter == "HAI":
-                raise SyntaxError(f"Unexpected token before 'HAI': {self.current_token()}")
+                raise SyntaxError(f"Unexpected token before 'HAI': {self.current_token()[0]}")
             else:
                 raise SyntaxError(f"Unexpected token after 'KTHXBYE': {self.current_token()}")
         
@@ -235,7 +244,7 @@ class Parser:
             if self.expect("Type Literal"):
                 type = self.current_token()[0]
                 self.consume("Type Literal")
-                return {"type": "Typecast", "variable": varident, "type": type}
+                return {"type": "Typecast", "variable": varident, "typing": type}
             else:
                 raise SyntaxError(f"Expected a type after 'MAEK', found {self.current_token()}")
         else:
@@ -243,7 +252,7 @@ class Parser:
 
     def retype(self):
         """
-        <retype> ::= varident IS NOW <type> | varident R MAEK varident A <type>
+        <retype> ::= varident IS NOW A <type> | varident R MAEK varident A <type>
         """
         if self.expect("Variable Identifier"):
             varident = self.current_token()[0]
@@ -253,7 +262,7 @@ class Parser:
                 if self.expect("Type Literal"):
                     type = self.current_token()[0]
                     self.consume("Type Literal")
-                    return {"type": "Retype", "variable": varident, "type": type}
+                    return {"type": "Retype", "variable": varident, "retyping": type}
                 else:
                     raise SyntaxError(f"Expected a type after 'IS NOW', found {self.current_token()}")
             elif self.expect("Typecast", "MAEK"):
@@ -266,7 +275,7 @@ class Parser:
                         if self.expect("Type"):
                             type = self.current_token()[0]
                             self.consume("Type")
-                            return {"type": "Retype", "variable": varident, "type": type}
+                            return {"type": "Retype", "variable": varident, "retyping": type}
                         else:
                             raise SyntaxError(f"Expected a type after 'A', found {self.current_token()}")
                     else:
@@ -692,26 +701,23 @@ class Parser:
 
         expression = ["Add", "Subtract", "Multiply", "Divide", "Modulo", "Max", "Min", "And", "Or", "Xor", "Not", "Any", "All", "Equal", "Not Equal"]
 
+        value = []
         if self.current_token()[1] in operand or self.current_token()[0] == "NOOB":
-            return {
-                "type": "Print",
-                "value": self.operand(),
-                "concatenations": self.printext()
-            }
+            value.append(self.operand())
+            value.extend(self.printext())
         elif self.current_token()[1] in expression:
-            return {
-                "type": "Print",
-                "value": self.expr(),
-                "concatenations": self.printext()
-            }
+            value.append(self.expr())
+            value.extend(self.printext())
         elif self.expect("Concatenation"):
-            return {
-                "type": "Print",
-                "value": self.concatenate(),
-                "concatenations": self.printext()
-            }
+            value.append(self.concatenate())
+            value.extend(self.printext())
         else:
             raise SyntaxError(f"Expected an operand or expression, found {self.current_token()}")
+        
+        return {
+            "type": "Print",
+            "value": value
+        }
 
     def operand(self):
         """
@@ -752,9 +758,9 @@ class Parser:
             operator = self.current_token()[1]
             self.consume(operator)
             if self.current_token()[1] in comparison_op and self.next_token()[1] == "Another One Keyword" and self.next_next_token()[1] in comparison_op:
-                self.comparison(operator)
+                return self.comparison(operator)
             elif self.current_token()[1] in comparison_op and self.next_token()[1] == "Another One Keyword" and self.next_next_token()[1] in relational:
-                self.relational(operator)
+                return self.relational(operator)
         elif self.expect("Concatenation"):
             return self.concatenate()
         else:
@@ -780,7 +786,7 @@ class Parser:
             else:
                 raise SyntaxError(f"Expected an operand or expression, found {self.current_token()}")
         return concat
-     
+    
     def scan(self):
         """
         <scan> ::= GIMMEH varident
@@ -878,8 +884,7 @@ class Parser:
     def boolean(self):
         """
         <boolean> ::=   <booloperator> OF <operand> AN <operand> |
-                        <boolmulti> OF <booleanexpr> <booleanext> MKAY |
-                        NOT <operand>
+                        <boolmulti> OF <booleanexpr> <booleanext> MKAY
         <booloperator> ::= BOTH | EITHER | WON
         <boolmulti> ::= ALL | ANY
         """
@@ -903,12 +908,12 @@ class Parser:
             operator = self.current_token()[1]
             self.consume(operator)
             self.consume("First One Keyword", "OF")
-            left = self.booleanexpr()
+            operands = [self.booleanexpr()]
+            operands.extend(self.booleanext())
             return {
                 "type": "Boolean",
                 "operator": operator,
-                "left": left,
-                "right": self.booleanext()
+                "operands": operands
             }
         elif self.expect("Not", "NOT"):
             self.consume("Not", "NOT")
@@ -949,11 +954,7 @@ class Parser:
                 "operand": operand
             }
         elif self.current_token()[1] in operand:
-            operand = self.operand()
-            return {
-                "type": "Operand",
-                "operand": operand
-            }
+            return self.operand()
         else:
             raise SyntaxError(f"Expected a boolean operator, found {self.current_token()}")
 
@@ -963,17 +964,16 @@ class Parser:
                          AN <booleanexpr> <booleanext>
         """
         self.consume("Another One Keyword", "AN")
-        left = self.booleanexpr()
-        if self.expect("Function Call Delimiter", "MKAY"):
-            self.consume("Function Call Delimiter", "MKAY")
-            return left
+        operands = []
+        while self.current_token and not self.expect("Function Call Delimiter", "MKAY"):
+            operands.append(self.booleanexpr())
+            if self.expect("Another One Keyword", "AN"):
+                self.consume("Another One Keyword", "AN")
+        if self.current_token() is None:
+            raise SyntaxError("No MKAY found, missing boolean delimiter.")
         else:
-            return {
-                "type": "Boolean",
-                "operator": "All",
-                "left": left,
-                "right": self.booleanext()
-            }
+            self.consume("Function Call Delimiter", "MKAY")
+            return operands
         
     def comparison(self, operator):
         """
@@ -994,7 +994,7 @@ class Parser:
     
     def relational(self, operator):
         """
-        <relational> ::= <compoperator> <reloperator> numbr AN numbr |
+        <relational> ::= <compoperator> numbr <reloperator> numbr AN numbr |
                          <compoperator> numbar <reloperator> numbar AN numbar
         <compoperator> ::= BOTH SAEM | DIFFRINT
                             (equal)    (not equal)
@@ -1015,10 +1015,10 @@ class Parser:
                 raise SyntaxError(f"Expected a relational operator, found {self.current_token()}")
         elif operator == "Not Equal":
             if self.expect("Max"):
-                rel_op = "Greater Than"
+                rel_op = "Less Than"
                 self.consume("Max")
             elif self.expect("Min"):
-                rel_op = "Less Than"
+                rel_op = "Greater Than"
                 self.consume("Min")
             else:
                 raise SyntaxError(f"Expected a relational operator, found {self.current_token()}")
@@ -1044,11 +1044,11 @@ class Parser:
         <concatenate> ::= SMOOSH <operand> <concatexten>
         """
         self.consume("Concatenation")
-        operand = self.operand()
+        value = [self.operand()]
+        value.extend(self.concatexten())
         return {
             "type": "Concatenation",
-            "value": operand,
-            "concatenations": self.concatexten()
+            "value": value
         }
 
     def concatexten(self):
@@ -1065,6 +1065,7 @@ class Parser:
                 concat.append(self.operand())
             elif self.current_token()[1] in expression:
                 concat.append(self.expr())
+        return concat
 
     def variable(self):
         """
@@ -1083,6 +1084,9 @@ class Parser:
                     self.multcomment()
                 else:
                     vardefs.extend(self.vardef())
+
+            if self.current_token is None:
+                raise SyntaxError("No BUHBYE found, missing variable delimiter.")
 
             self.consume("Variable Delimiter", "BUHBYE")
             return vardefs
