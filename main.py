@@ -176,7 +176,7 @@ class InterpreterApp:
         button.bind("<Enter>", lambda _: button.config(bg="darkgray"))
         
         #go back to usual color of tkinter button when arrow is not on button
-        button.bind("<Leave>", lambda _: button.config(bg="gray"))
+        button.bind("<Leave>", lambda _: button.config(bg="SystemButtonFace"))
 
     # -----------------------------------------------------------------------------------------
     # Initializes the parts of the GUI at the start of program (50-50 vertical, 33-33-33 horizontal) paned windows
