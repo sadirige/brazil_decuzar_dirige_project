@@ -47,6 +47,8 @@ class SemanticAnalyzer:
             print(self.symbol_table[node["variable"]])
         elif node["type"] == "Retype":
             self.execute_retype(node["variable"], node["retyping"])
+        # elif node["type"] == "Switch-Case":
+        #   self.execute_switchcase(node["it_value"], node["cases"], node["default"]) 
         elif node["type"] == "Loop":
             self.execute_loop(node)
         elif node["type"] == "Function Call":
@@ -114,22 +116,29 @@ class SemanticAnalyzer:
                 if node["operation"] == "Increment Keyword":
                     update += 1
                     self.symbol_table[node["variable"]] = ("Integer Literal", str(update))
+                    self.update_value_gui(node["variable"], str(update))
                 elif node["operation"] == "Decrement Keyword":
                     update -= 1
                     self.symbol_table[node["variable"]] = ("Integer Literal", str(update))
+                    self.update_value_gui(node["variable"], str(update))
 
     def execute_retype(self, var_name, new_type):
         if new_type == "NUMBAR":
             self.symbol_table[var_name] = ("Float Literal", float(self.symbol_table[var_name][1]))
+            self.update_value_gui(var_name, float(self.symbol_table[var_name][1]))
         elif new_type == "NUMBR":
             self.symbol_table[var_name] = ("Integer Literal", int(self.symbol_table[var_name][1]))
+            self.update_value_gui(var_name, int(self.symbol_table[var_name][1]))
         elif new_type == "TROOF":
             if self.symbol_table[var_name][1] == 0:
                 self.symbol_table[var_name] = ("Boolean Literal", "FAIL")
+                self.update_value_gui(var_name, "FAIL")
             else:
                 self.symbol_table[var_name] = ("Boolean Literal", "WIN")
+                self.update_value_gui(var_name, "WIN")
         elif new_type == "YARN":
             self.symbol_table[var_name] = ("String Literal", str(self.symbol_table[var_name][1]))
+            self.update_value_gui(var_name, str(self.symbol_table[var_name][1]))
 
     def console_input(self, var_name):
         user_input = self.input_dialog("Input", "Enter input:")
@@ -137,6 +146,13 @@ class SemanticAnalyzer:
         self.console.insert(tk.END, user_input + "\n")
         self.console.config(state=tk.DISABLED)
         self.symbol_table[var_name] = ("String Literal", user_input)
+        self.update_value_gui(var_name, user_input)
+    
+    def update_value_gui(self, var_name, new_value):
+        for var in self.symbols_gui.get_children():
+            if self.symbols_gui.item(var, "values")[0] == var_name:
+                self.symbols_gui.item(var, values=(var_name, new_value))
+                break
 
     def console_output(self, to_print, suppress_newline):
         to_print_copy = to_print[:]
@@ -168,14 +184,6 @@ class SemanticAnalyzer:
             self.console.insert(tk.END, text)
         self.console.config(state=tk.DISABLED)
 
-    def update_symbols_gui(self, var_name, value):
-        self.symbols_gui.insert(tk.END, f"{var_name} : {value}")
-        for item in self.symbols_gui.get_children():
-            if self.symbols_gui.item(item, "text") == var_name:
-                self.symbols_gui.item(item, values=(value,))
-                return
-        self.symbols_gui.insert("", tk.END, text=var_name, values=(value,))
-
     def execute_expression(self, node):
         value = None
         if node["type"] == "Math":
@@ -189,7 +197,7 @@ class SemanticAnalyzer:
         elif node["type"] == "Comparison" or node["type"] == "Relational":
             value = self.execute_comparison_relational(node)
             self.symbol_table["IT"] = ("Boolean Literal", value)
-            # self.update_symbols_gui("IT", value)
+            self.update_value_gui("IT", value)
             return value
 
     def execute_comparison_relational(self, node):
@@ -237,21 +245,28 @@ class SemanticAnalyzer:
     def execute_assignment(self, var_name, value):
         if value["type"] == "Math":
             self.symbol_table[var_name] = ("Integer Literal", self.execute_math(value))
+            self.update_value_gui(var_name, self.execute_math(value))
         elif value["type"] == "Concatenation":
             self.symbol_table[var_name] = ("String Literal", self.execute_concat(value["value"]))
+            self.update_value_gui(var_name, self.execute_concat(value["value"]))
         elif value["type"] == "Boolean":
             pass
         elif value["type"] == "Operand" and value["classification"] == "Variable Identifier":
             self.symbol_table[var_name] = self.symbol_table[value["value"]]
+            self.update_value_gui(var_name, value["value"])
         elif value["type"] == "Operand" and value["classification"] == "String Literal":
             self.symbol_table[var_name] = ("String Literal", value["value"])
+            self.update_value_gui(var_name, value["value"])
         elif value["type"] == "Operand" and value["classification"] == "Integer Literal":
             self.symbol_table[var_name] = ("Integer Literal", value["value"])
+            self.update_value_gui(var_name, value["value"])
         elif value["type"] == "Operand" and value["classification"] == "Float Literal":
             self.symbol_table[var_name] = ("Float Literal", value["value"])
+            self.update_value_gui(var_name, value["value"])
         elif value["type"] == "Operand" and value["classification"] == "Boolean Literal":
             self.symbol_table[var_name] = ("Boolean Literal", value["value"])
-            self.get_var_value(var_name)
+            true_val = self.get_var_value(var_name)
+            self.update_value_gui(var_name, true_val)
         elif value["type"] == "Function Call":
             self.execute_function_call(value)
         elif value["type"] == "Concatenation":
@@ -259,14 +274,18 @@ class SemanticAnalyzer:
         elif value["type"] == "Typecast":
             if value["typing"] == "NUMBAR":
                 self.symbol_table[var_name] = ("Float Literal", float(self.symbol_table[value["variable"]][1]))
+                self.update_value_gui(var_name, str(float(self.symbol_table[value["variable"]][1])))
             elif value["typing"] == "NUMBR":
                 self.symbol_table[var_name] = ("Integer Literal", int(self.symbol_table[value["variable"]][1]))
+                self.update_value_gui(var_name, str(int(self.symbol_table[value["variable"]][1])))
             elif value["typing"] == "TROOF":
                 actual_val = self.get_var_value(value["variable"])
                 if actual_val == "0":
                     self.symbol_table[var_name] = ("Boolean Literal", "FAIL")
+                    self.update_value_gui(var_name, "FAIL")
                 else:
                     self.symbol_table[var_name] = ("Boolean Literal", "WIN")
+                    self.update_value_gui(var_name, "WIN")
         else:
             raise RuntimeError(f"Invalid assignment value: {value}")
         
