@@ -12,6 +12,7 @@ HAI
 
 	VISIBLE "Choice: "
 	GIMMEH choice
+	choice IS NOW A NUMBR
 
 	BOTH SAEM choice AN 1
 	O RLY?
@@ -38,7 +39,7 @@ TLDR
 			VISIBLE "Invalid Input!"
 	OIC
 
-	DIFFRINT BIGGR OF 3 AN choice AN 3
+	DIFFRINT 3 AN BIGGR OF 3 AN choice
 	O RLY?
 		YA RLY
 			VISIBLE "Invalid input is > 3."
