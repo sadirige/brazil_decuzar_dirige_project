@@ -259,7 +259,7 @@ class InterpreterApp:
             #semantic analysis
             # print("success")
             print(ast)
-            semantic = SemanticAnalyzer(symbol_table, ast[1], self.console_part)
+            semantic = SemanticAnalyzer(symbol_table, ast[1], self.console_part, self.symbols)
             semantic.run()
 
     # -----------------------------------------------------------------------------------------

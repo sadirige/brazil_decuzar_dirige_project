@@ -367,11 +367,11 @@ class Parser:
             elif self.current_token() is None:
                 self.parse_error("Syntax Error: No 'IM OUTTA YR' found, missing loop delimiter.")
             elif self.expect("Return With Value") or self.expect("Break/Return"):
-                statements.append(self.funcret())
+                statements.extend(self.funcret())
                 break
                 #anything after GTFO or FOUND YR is ignored
             else:
-                statements.append(self.statement())
+                statements.extend(self.statement())
         return statements
     
     def conditionals(self):

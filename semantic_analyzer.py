@@ -4,10 +4,11 @@ This part is the file containing the semantic analyzer, checking for semantic er
 import tkinter as tk
 
 class SemanticAnalyzer:
-    def __init__(self, symbol_table, ast, console):
+    def __init__(self, symbol_table, ast, console, symbols_gui):
         self.ast = ast
         self.symbol_table = symbol_table  #hold variables and functions
         self.console = console
+        self.symbols_gui = symbols_gui
 
     def run(self):
         #store functions defined in the symbol table
@@ -76,9 +77,35 @@ class SemanticAnalyzer:
     def execute_loop(self, node):
         #loop as long as loop_condition is true
         if node["condition"] == "Loop While":
-            while self.execute_boolean(node["loop_condition"]):
-                for statement in node["statements"]:
-                    self.execute_statement(statement)
+            update = int(self.get_var_value(node["variable"]))
+            while self.execute_expression(node["loop_condition"]) == "WIN":
+                for statement in node["body"]:
+                    if statement["type"] == "Break":
+                        break
+                    else:
+                        self.execute_statement(statement)
+                if node["operation"] == "Increment Keyword":
+                    update += 1
+                    self.symbol_table[node["variable"]] = ("Integer Literal", str(update))
+                elif node["operation"] == "Decrement Keyword":
+                    update -= 1
+                    self.symbol_table[node["variable"]] = ("Integer Literal", str(update))
+        
+        #loop as long as loop_condition is false
+        elif node["condition"] == "Loop Until":
+            update = int(self.get_var_value(node["variable"]))
+            while self.execute_expression(node["loop_condition"]) == "FAIL":
+                for statement in node["body"]:
+                    if statement["type"] == "Break":
+                        break
+                    else:
+                        self.execute_statement(statement)
+                if node["operation"] == "Increment Keyword":
+                    update += 1
+                    self.symbol_table[node["variable"]] = ("Integer Literal", str(update))
+                elif node["operation"] == "Decrement Keyword":
+                    update -= 1
+                    self.symbol_table[node["variable"]] = ("Integer Literal", str(update))
 
     def execute_retype(self, var_name, new_type):
         if new_type == "NUMBAR":
@@ -101,13 +128,15 @@ class SemanticAnalyzer:
         self.symbol_table[var_name] = ("String Literal", user_input)
 
     def console_output(self, to_print, suppress_newline):
+        to_print_copy = to_print[:]
         #value to print is an operand (varident or literal)
         text = ""
-        while to_print:
-            item = to_print.pop(0)
+        while to_print_copy:
+            item = to_print_copy.pop(0)
             if item["type"] == "Operand" and item["classification"] == "Variable Identifier":
                 #check if variable was declared by checking in the symbol_table
                 text += str(self.get_var_value(item["value"]))
+                print(text)
             elif item["type"] == "Operand" and item["classification"] == "String Literal":
                 text += item["value"]
             elif item["type"] == "Operand" and item["classification"] == "Integer Literal":
@@ -118,16 +147,7 @@ class SemanticAnalyzer:
                 text += item["value"]
             else:
                 #item to print is an expression
-                if item["type"] == "Math":
-                    text += str(self.execute_math(item))
-                elif item["type"] == "Boolean" and (item["operator"] == "All" or item["operator"] == "Any"):
-                    text += self.execute_boolean_special(item)
-                elif item["type"] == "Boolean":
-                    text += self.execute_boolean(item)
-                elif item["type"] == "Concatenation":
-                    text += self.execute_concat(item["value"])
-                elif item["type"] == "Comparison" or item["type"] == "Relational":
-                    text += self.execute_comparison_relational(item)
+                text += str(self.execute_expression(item))
                 
         self.console.config(state=tk.NORMAL)
         if suppress_newline:
@@ -137,10 +157,34 @@ class SemanticAnalyzer:
             self.console.insert(tk.END, text)
         self.console.config(state=tk.DISABLED)
 
+    def update_symbols_gui(self, var_name, value):
+        self.symbols_gui.insert(tk.END, f"{var_name} : {value}")
+        for item in self.symbols_gui.get_children():
+            if self.symbols_gui.item(item, "text") == var_name:
+                self.symbols_gui.item(item, values=(value,))
+                return
+        self.symbols_gui.insert("", tk.END, text=var_name, values=(value,))
+
+    def execute_expression(self, node):
+        value = None
+        if node["type"] == "Math":
+            return self.execute_math(node)
+        elif node["type"] == "Boolean" and (node["operator"] == "All" or node["operator"] == "Any"):
+            return self.execute_boolean_special(node)
+        elif node["type"] == "Boolean":
+            return self.execute_boolean(node)
+        elif node["type"] == "Concatenation":
+            return self.execute_concat(node["value"])
+        elif node["type"] == "Comparison" or node["type"] == "Relational":
+            value = self.execute_comparison_relational(node)
+            self.symbol_table["IT"] = ("Boolean Literal", value)
+            # self.update_symbols_gui("IT", value)
+            return value
+
     def execute_comparison_relational(self, node):
         left = node["left"]
         if left["type"] == "Operand" and left["classification"] == "Variable Identifier":
-            left = self.get_var_value(left["value"])
+            left = self.math_get_var_value(left["value"])
         elif left["type"] == "Operand" and left["classification"] == "String Literal":
             left = int(left["value"])
         elif left["type"] == "Math":
@@ -154,7 +198,7 @@ class SemanticAnalyzer:
 
         right = node["right"]
         if right["type"] == "Operand" and right["classification"] == "Variable Identifier":
-            right = self.get_var_value(right["value"])
+            right = self.math_get_var_value(right["value"])
         elif right["type"] == "Operand" and right["classification"] == "String Literal":
             right = int(right["value"])
         elif right["type"] == "Math":
