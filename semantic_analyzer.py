@@ -49,6 +49,60 @@ class SemanticAnalyzer:
         # elif node["type"] == "FunctionCall":
         #     self.execute_function_call(node)
 
+        elif node["type"] == "Comparison" or node["type"] == "Relational":
+            self.execute_expression_comp_rel(node)
+        elif node["type"] == "If-Then":
+            side = self.get_var_value("IT")
+
+            # check if there is an else clause
+            flag = self.check_else(node)
+            
+            if side != "WIN" and flag == 0:
+                pass
+            else:
+                if side == "WIN":
+                    stmt = node['if_body']
+                else:
+                    stmt = node['else_body']
+
+                # check if there is only 1 statement or more
+                flag2 = self.check_ifelse_list(stmt)
+
+                if flag2 == 0:
+                    self.execute_ifthen(stmt[0])
+                else:
+                    final_stmt = stmt.pop(0)
+                    for i in final_stmt:
+                        self.execute_ifthen(i)
+                    
+    def check_ifelse_list (self,node):
+        flag = 0
+        if type(node[0]) is list:
+            flag = 1
+        return flag
+    
+    def check_else(self, node):
+        flag = 0
+        for i in node:
+            if i == "else_body":
+                flag = 1
+        return flag 
+
+    def execute_ifthen(self,node):
+        if node["type"] == "Print":
+            self.console_output(node["value"], node["suppress_newline"])
+        elif node["type"] == "Scan":
+            # check if variable was declared by checking in the symbol_table
+            if node["variable"] not in self.symbol_table:
+                raise RuntimeError(f"Undefined variable: {node['variable']}")
+            else:
+                self.console_input(node["variable"])
+        elif node["type"] == "Assignment":
+            self.execute_assignment(node["variable"], node["value"])
+            print(self.symbol_table[node["variable"]])
+        elif node["type"] == "Retype":
+            self.execute_retype(node["variable"], node["retyping"])
+
     def input_dialog(self, title, prompt):
         def on_enter():
             nonlocal user_input
@@ -136,6 +190,9 @@ class SemanticAnalyzer:
             text += "\n"
             self.console.insert(tk.END, text)
         self.console.config(state=tk.DISABLED)
+
+    def execute_expression_comp_rel(self,node):
+        self.symbol_table["IT"] = ("Implicit Variable", self.execute_comparison_relational(node))
 
     def execute_comparison_relational(self, node):
         left = node["left"]
@@ -227,7 +284,6 @@ class SemanticAnalyzer:
             else:
                 text +=item["value"]
         return text
-
 
     def get_var_value(self, var_name):
         if var_name not in self.symbol_table:
@@ -330,8 +386,7 @@ class SemanticAnalyzer:
         elif node["operator"] == "Xor":
             print(left, right)
             return "WIN" if left != right else "FAIL"
-
-        
+   
     def execute_math(self, node):
         left = node["left"]
         if left["type"] == "Operand" and left["classification"] == "Variable Identifier":
@@ -348,7 +403,7 @@ class SemanticAnalyzer:
                     elif left["value"] == "FAIL" or left["value"] == "NOOB":
                         left = 0
                     else:
-                        raise RuntimeError(f"Invalid value for \"{left["value"]}\")")
+                        raise RuntimeError(f"Invalid value for \"{left['value']}\" ")
         elif left["type"] == "Operand" and left["classification"] == "Boolean Literal":
             if left["value"] == "FAIL":
                 left = 0
@@ -376,7 +431,7 @@ class SemanticAnalyzer:
                     elif right["value"] == "FAIL" or right["value"] == "NOOB":
                         right = 0
                     else:
-                        raise RuntimeError(f"Invalid value for \"{right["value"]}\")")
+                        raise RuntimeError(f"Invalid value for \"{right['value']}\" ")
         elif right["type"] == "Operand" and right["classification"] == "Boolean Literal":
             if right["value"] == "FAIL":
                 right = 0
