@@ -14,17 +14,32 @@ class SemanticAnalyzer:
     def run(self):
         #store functions defined in the symbol table
         for function in self.ast["functions"]:
-            print(function["name"])
             self.functions[function["name"]] = function
-        
-        print(self.functions)
             
-        #variables declared between WAZZUP and BUHBYE should already be in the symbol table (added during syntax analysis)
+        #variables declared between WAZZUP and BUHBYE should already be in the symbol table (added during syntax analysis), EXCEPT for when their values are expressions
         variables = self.ast["main_program"]["variables"]
         for variable in variables:
             if variable["name"] not in self.symbol_table:
                 if variable["value"]["type"] == "Math":
-                    self.symbol_table[variable["name"]] = ("Integer Literal", self.execute_math(variable["value"]))
+                    value = self.execute_math(variable["value"])
+                    if isinstance(value, int):
+                        self.symbol_table[variable["name"]] = ("Integer Literal", value)
+                        self.update_value_gui(variable["name"], value)
+                    elif isinstance(value, float):
+                        self.symbol_table[variable["name"]] = ("Float Literal", value)
+                        self.update_value_gui(variable["name"], value)
+                elif variable["value"]["type"] == "Concatenation":
+                    self.symbol_table[variable["name"]] = ("String Literal", self.execute_concat(variable["value"]["value"]))
+                    self.update_value_gui(variable["name"], self.execute_concat(variable["value"]["value"]))
+                elif variable["value"]["type"] == "Boolean" and (variable["value"]["operator"] == "All" or variable["value"]["operator"] == "Any"):
+                    self.symbol_table[variable["name"]] = ("Boolean Literal", self.execute_boolean_special(variable["value"]))
+                    self.update_value_gui(variable["name"], self.execute_boolean_special(variable["value"]))
+                elif variable["value"]["type"] == "Boolean":
+                    self.symbol_table[variable["name"]] = ("Boolean Literal", self.execute_boolean(variable["value"]))
+                    self.update_value_gui(variable["name"], self.execute_boolean(variable["value"]))
+                elif variable["value"]["type"] == "Comparison" or variable["value"]["type"] == "Relational":
+                    self.symbol_table[variable["name"]] = ("Boolean Literal", self.execute_comparison_relational(variable["value"]))
+                    self.update_value_gui(variable["name"], self.execute_comparison_relational(variable["value"]))
 
         statements = self.ast["main_program"]["statements"]
 
@@ -49,7 +64,6 @@ class SemanticAnalyzer:
                 self.console_input(node["variable"])
         elif node["type"] == "Assignment":
             self.execute_assignment(node["variable"], node["value"])
-            print(self.symbol_table[node["variable"]])
         elif node["type"] == "Retype":
             self.execute_retype(node["variable"], node["retyping"])
         # elif node["type"] == "Switch-Case":
@@ -160,10 +174,15 @@ class SemanticAnalyzer:
         self.update_value_gui(var_name, user_input)
     
     def update_value_gui(self, var_name, new_value):
+        exist = False
         for var in self.symbols_gui.get_children():
             if self.symbols_gui.item(var, "values")[0] == var_name:
                 self.symbols_gui.item(var, values=(var_name, new_value))
+                exist = True
                 break
+
+        if not exist:
+            self.symbols_gui.insert("", "end", values=(var_name, new_value))
 
     def console_output(self, to_print, suppress_newline):
         to_print_copy = to_print[:]
@@ -174,7 +193,6 @@ class SemanticAnalyzer:
             if item["type"] == "Operand" and item["classification"] == "Variable Identifier":
                 #check if variable was declared by checking in the symbol_table
                 text += str(self.get_var_value(item["value"]))
-                print(text)
             elif item["type"] == "Operand" and item["classification"] == "String Literal":
                 text += item["value"]
             elif item["type"] == "Operand" and item["classification"] == "Integer Literal":
@@ -190,7 +208,9 @@ class SemanticAnalyzer:
         self.console.config(state=tk.NORMAL)
         if suppress_newline:
             self.console.insert(tk.END, text)
+            self.update_value_gui("IT", text)
         else:
+            self.update_value_gui("IT", text)
             text += "\n"
             self.console.insert(tk.END, text)
         self.console.config(state=tk.DISABLED)
@@ -198,13 +218,28 @@ class SemanticAnalyzer:
     def execute_expression(self, node):
         value = None
         if node["type"] == "Math":
-            return self.execute_math(node)
+            value = self.execute_math(node)
+            if isinstance(value, int):
+                self.symbol_table["IT"] = ("Integer Literal", value)
+            elif isinstance(value, float):
+                self.symbol_table["IT"] = ("Float Literal", value)
+            self.update_value_gui("IT", value)
+            return value
         elif node["type"] == "Boolean" and (node["operator"] == "All" or node["operator"] == "Any"):
-            return self.execute_boolean_special(node)
+            value = self.execute_boolean_special(node)
+            self.symbol_table["IT"] = ("Boolean Literal", value)
+            self.update_value_gui("IT", value)
+            return value
         elif node["type"] == "Boolean":
-            return self.execute_boolean(node)
+            value = self.execute_boolean(node)
+            self.symbol_table["IT"] = ("Boolean Literal", value)
+            self.update_value_gui("IT", value)
+            return value
         elif node["type"] == "Concatenation":
-            return self.execute_concat(node["value"])
+            value = self.execute_concat(node["value"])
+            self.symbol_table["IT"] = ("String Literal", value)
+            self.update_value_gui("IT", value)
+            return value
         elif node["type"] == "Comparison" or node["type"] == "Relational":
             value = self.execute_comparison_relational(node)
             self.symbol_table["IT"] = ("Boolean Literal", value)
@@ -260,8 +295,12 @@ class SemanticAnalyzer:
         elif value["type"] == "Concatenation":
             self.symbol_table[var_name] = ("String Literal", self.execute_concat(value["value"]))
             self.update_value_gui(var_name, self.execute_concat(value["value"]))
+        elif value["type"] == "Boolean" and (value["operator"] == "All" or value["operator"] == "Any"):
+            self.symbol_table[var_name] = ("Boolean Literal", self.execute_boolean_special(value))
+            self.update_value_gui(var_name, self.execute_boolean_special(value))
         elif value["type"] == "Boolean":
-            pass
+            self.symbol_table[var_name] = ("Boolean Literal", self.execute_boolean(value))
+            self.update_value_gui(var_name, self.execute_boolean(value))
         elif value["type"] == "Operand" and value["classification"] == "Variable Identifier":
             self.symbol_table[var_name] = self.symbol_table[value["value"]]
             self.update_value_gui(var_name, value["value"])
@@ -346,14 +385,17 @@ class SemanticAnalyzer:
         for i, statement in enumerate(function["statements"]):
             if statement["type"] == "Return":
                 self.symbol_table["IT"] = self.execute_return(statement)
+                self.update_value_gui("IT", self.symbol_table["IT"][1])
                 break
             elif statement["type"] == "Break":
                 self.symbol_table["IT"] = ("Type Literal", "NOOB")
+                self.update_value_gui("IT", "NOOB")
                 break
             else:
                 if i == len(function["statements"]) - 1:
                     #if there are no GTFO/FOUND YR statement, the implicit IT variable will contain NOOB
                     self.symbol_table["IT"] = ("Type Literal", "NOOB")
+                    self.update_value_gui("IT", "NOOB")
                 self.execute_statement(statement)
 
 
@@ -364,10 +406,8 @@ class SemanticAnalyzer:
             if item["type"] == "Operand" and item["classification"] == "Variable Identifier":
                 #check if variable was declared by checking in the symbol_table
                 text += str(self.get_var_value(item["value"]))
-            # elif item["type"] == "Operand" and item["classification"] == "String Literal":
-            #     text += item["value"]
             else:
-                text +=item["value"]
+                text += item["value"]
         return text
 
 
@@ -464,13 +504,10 @@ class SemanticAnalyzer:
             right = right["value"]
         
         if node["operator"] == "And":
-            print(left, right)
             return "FAIL" if left == "FAIL" or right == "FAIL" else "WIN"
         elif node["operator"] == "Or":
-            print(left, right)
             return "FAIL" if left == "FAIL" and right == "FAIL" else "WIN"
         elif node["operator"] == "Xor":
-            print(left, right)
             return "WIN" if left != right else "FAIL"
 
         
