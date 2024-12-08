@@ -13,3 +13,6 @@ GUI References:
         https://stackoverflow.com/questions/15981000/tkinter-python-maximize-window
 6. Add line numbers beside Text Editor for better UX
         https://stackoverflow.com/questions/16369470/tkinter-adding-line-number-to-text-widget
+7. Synchronizing scrolling of two text widgets (line numbers and text editor part)
+        https://stackoverflow.com/questions/32038701/python-tkinter-making-two-text-widgets-scrolling-synchronize
+        https://tkinter.com/connect-one-scrollbar-to-multiple-textboxes-python-tkinter-gui-tutorial-196/
