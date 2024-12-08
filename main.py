@@ -237,9 +237,6 @@ class InterpreterApp:
 
         #1. Tokenize each line in lolcode and display in the list of tokens (lexemes) - LEXICAL ANALYSIS
         lexemes = tokenize(lolcode)
-
-        # for i in lexemes:
-        #     print(i)
         # print(lexemes)
 
         self.display_lexemes(lexemes)
@@ -257,8 +254,7 @@ class InterpreterApp:
         #3. If syntax is correct (there is a Generated AST from syntax analysis), perform semantic analysis
         else:
             #semantic analysis
-            # print("success")
-            print(ast)
+            # print(ast)
             semantic = SemanticAnalyzer(symbol_table, ast[1], self.console_part)
             semantic.run()
 
