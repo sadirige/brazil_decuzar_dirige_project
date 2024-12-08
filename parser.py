@@ -539,68 +539,130 @@ class Parser:
         <ifthen> ::= <expr> <linebreak> O RLY? <linebreak> YA RLY <linebreak> <statement> <linebreak> OIC | 
                      <expr> <linebreak> O RLY? <linebreak> YA RLY <linebreak> <statement> <linebreak> NO WAI <linebreak> <statement> <linebreak> OIC
         """
-        if self.expect("If-Then Delimiter", "O RLY"):
-            self.consume("If-Then Delimiter", "O RLY")
+        if self.expect("If-Then Delimiter", "O RLY?"):
+            self.consume("If-Then Delimiter", "O RLY?")
             if self.expect("Linebreak"):
                 self.consume("Linebreak")
                 if self.expect("If Keyword", "YA RLY"):
-                    self.consume("If Keyword", "YA RLY")
-                    if self.expect("Linebreak"):
-                        self.consume("Linebreak")
-                        true_body = self.statement()
+                    if_body = self.if_func()
+                    if self.expect("If-Then/Switch-Case Delimiter", "OIC"):
+                        self.consume("If-Then/Switch-Case Delimiter", "OIC")
+                        if self.expect("Linebreak"):
+                            self.consume("Linebreak")
+                            return {"type": "If-Then", "if_body": if_body}
+                    elif self.expect("Else If Keyword", "MEBBE"):
+                        else_if_bodies = self.elif_func()
                         if self.expect("If-Then/Switch-Case Delimiter", "OIC"):
                             self.consume("If-Then/Switch-Case Delimiter", "OIC")
-                            return {"type": "If-Then", "condition": self.expr(), "true_body": true_body}
-                        elif self.expect("Else If Keyword", "MEBBE"):
-                            self.consume("Else If Keyword", "MEBBE")
                             if self.expect("Linebreak"):
                                 self.consume("Linebreak")
-                                false_body = self.statement()
+                                return {"type": "If-Then", "condition": self.expr(), "if_body": if_body, "else_if_body": else_if_bodies}
+                        elif self.expect("Else Keyword", "NO WAI"):
+                            else_body = self.else_func()
+                            if self.expect("Linebreak"):
+                                self.consume("Linebreak")
                                 if self.expect("If-Then/Switch-Case Delimiter", "OIC"):
                                     self.consume("If-Then/Switch-Case Delimiter", "OIC")
-                                    return {"type": "If-Then", "condition": self.expr(), "true_body": true_body, "false_body": false_body}
-                                else:
-                                    raise SyntaxError(f"Expected 'OIC' after false body, found {self.current_token()}")
-                            else:
-                                raise SyntaxError(f"Expected a linebreak after 'MEBBE', found {self.current_token()}")
+                                    if self.expect("Linebreak"):
+                                        self.consume("Linebreak")
+                                        return {"type": "If-Then", "if_body": if_body, "else_if_body": else_if_bodies, "else_body": else_body}
                         else:
-                            raise SyntaxError(f"Expected 'OIC' or 'MEBBE' after true body, found {self.current_token()}")
-                    else:
-                        raise SyntaxError(f"Expected a linebreak after 'YA RLY', found {self.current_token()}")
+                            raise SyntaxError(f"Expected 'OIC' or 'NO WAI' after condition body, found {self.current_token()}")
+                    elif self.expect("Else Keyword", "NO WAI"):
+                        self.consume("Else Keyword", "NO WAI")
+                        if self.expect("Linebreak"):
+                            self.consume("Linebreak")
+                            else_body = self.statement()
+                            if self.expect("If-Then/Switch-Case Delimiter", "OIC"):
+                                self.consume("If-Then/Switch-Case Delimiter", "OIC")
+                                if self.expect("Linebreak"):
+                                    self.consume("Linebreak")
+                                    return {"type": "If-Then", "if_body": if_body, "else_body": else_body}
+                            else:
+                                raise SyntaxError(f"Expected 'OIC' after false body, found {self.current_token()}")
+                        else:
+                            raise SyntaxError(f"Expected 'OIC', 'MEBBE', 'NO WAI' after condition body, found {self.current_token()}")
                 else:
                     raise SyntaxError(f"Expected 'YA RLY' after linebreak, found {self.current_token()}")
             else:
-                raise SyntaxError(f"Expected a linebreak after 'O RLY', found {self.current_token()}")
+                raise SyntaxError(f"Expected a linebreak after 'O RLY?', found {self.current_token()}")
         else:
-            raise SyntaxError(f"Expected 'O RLY' after 'HOW IZ I', found {self.current_token()}")
+            raise SyntaxError(f"Expected 'O RLY?', found {self.current_token()}")
+        
+    def if_func(self):
+        '''This should only return the body for the if-statement'''
+        statement = []
+        if self.expect("If Keyword", "YA RLY"):
+            self.consume("If Keyword", "YA RLY")
+            if self.expect("Linebreak"):
+                self.consume("Linebreak")
+                statement.append(self.statement())
+            else:
+                raise SyntaxError(f"Expected a linebreak after 'YA RLY', found {self.current_token()}")
+            
+        return statement
+    
+    def elif_func(self):
+        '''This should return all the statements and their conditions in MEBBE'''
+        statements = {}
+        while not self.expect("Else Keyword", "NO WAI"):
+            if self.expect("Else If Keyword", "MEBBE"):
+                self.consume("Else If Keyword", "MEBBE")
+                if self.expect("Equal") or self.expect("Not Equal") or self.expect("Max") or self.expect("Min"):
+                    self.consume(self.next_token()[1])
+                    condition = self.expr()
+                    if self.expect("Linebreak"):
+                        self.consume("Linebreak")
+                        statements[condition] = self.statement()
+                else:
+                    raise SyntaxError(f"Expected a conditional or relational statement, found {self.current_token()}")
+        
+        return statements
+    
+    def else_func(self):
+        '''This should return the statement for the else-statement'''
+        statement = []
+        if self.expect("Else Keyword", "NO WAI"):
+            self.consume("Else Keyword", "NO WAI")
+            if self.expect("Linebreak"):
+                self.consume("Linebreak")
+                statement.append(self.statement())
+            else:
+                raise SyntaxError(f"Expected a linebreak after 'NO WAI', found {self.current_token()}")
+            
+        return statement
 
     def switchcase(self):
         """
-        <switchcase> ::= WTF? <linebreak> <case> OMGWTF <linebreak> <statement> <linebreak> OIC
+        <switchcase> ::= varident WTF? <linebreak> <case> OMGWTF <linebreak> <statement> <linebreak> OIC |
+                         <literal> WTF? <linebreak> <case> OMGWTF <linebreak> <statement> <linebreak> OIC   
         """
-        if self.expect("Switch-Case Delimiter", "WTF?"):
-            self.consume("Switch-Case Delimiter", "WTF?")
-            if self.expect("Linebreak"):
-                self.consume("Linebreak")
-                cases = self.case()
-                if self.expect("Default Keyword", "OMGWTF"):
-                    self.consume("Default Keyword", "OMGWTF")
-                    if self.expect("Linebreak"):
-                        self.consume("Linebreak")
-                        default = self.statement()
-                        if self.expect("If-Then/Switch-Case Delimiter", "OIC"):
-                            self.consume("If-Then/Switch-Case Delimiter", "OIC")
-                            return {"type": "Switch-Case", "cases": cases, "default": default}
+        if self.expect("Variable Identifier") or self.expect("Integer Literal") or self.expect("Float Literal") or self.expect("String Delimiter") or self.expect("Boolean Literal"):
+            it_value = self.current_token()[0]
+            self.consume(self.current_token()[1])
+            if self.expect("Switch-Case Delimiter", "WTF?"):
+                self.consume("Switch-Case Delimiter", "WTF?")
+                if self.expect("Linebreak"):
+                    self.consume("Linebreak")
+                    cases = self.case()
+                    if self.expect("Default Keyword", "OMGWTF"):
+                        self.consume("Default Keyword", "OMGWTF")
+                        if self.expect("Linebreak"):
+                            self.consume("Linebreak")
+                            default = self.statement()
+                            if self.expect("If-Then/Switch-Case Delimiter", "OIC"):
+                                self.consume("If-Then/Switch-Case Delimiter", "OIC")
+                                return {"type": "Switch-Case", "it_value": it_value, "cases": cases, "default": default}
+                            else:
+                                raise SyntaxError(f"Expected 'OIC' after default case, found {self.current_token()}")
                         else:
-                            raise SyntaxError(f"Expected 'OIC' after default case, found {self.current_token()}")
+                            raise SyntaxError(f"Expected a linebreak after 'OMGWTF', found {self.current_token()}")
                     else:
-                        raise SyntaxError(f"Expected a linebreak after 'OMGWTF', found {self.current_token()}")
+                        raise SyntaxError(f"Expected 'OMGWTF' after cases, found {self.current_token()}")
                 else:
-                    raise SyntaxError(f"Expected 'OMGWTF' after cases, found {self.current_token()}")
+                    raise SyntaxError(f"Expected a linebreak after 'WTF?', found {self.current_token()}")
             else:
-                raise SyntaxError(f"Expected a linebreak after 'WTF?', found {self.current_token()}")
-        else:
-            raise SyntaxError(f"Expected 'WTF?' after 'HOW IZ I', found {self.current_token()}")
+                raise SyntaxError(f"Expected 'WTF?' after variable identifier, found {self.current_token()}")
 
     def case(self):
         """
@@ -664,7 +726,7 @@ class Parser:
                     statements.append(self.funccall())
                 elif self.expect("Loop Delimiter", "IM IN YR"):  #IM IN YR keyword (loop)
                     statements.append(self.loop())
-                elif self.expect("If-Then Delimiter", "O RLY"):  #O RLY keyword (ifthen)
+                elif self.expect("If-Then Delimiter", "O RLY?"):  #O RLY keyword (ifthen)
                     statements.append(self.ifthen())
                 elif self.expect("Switch-Case Delimiter", "WTF?"):  #WTF? keyword (switchcase)
                     statements.append(self.switchcase())
@@ -676,6 +738,12 @@ class Parser:
                     self.consume("Linebreak")
                     if self.expect("Loop Delimiter", "IM OUTTA YR"):
                         break
+                elif self.expect("Else If Keyword", "MEBBE"):
+                    return statements
+                elif self.expect("Else Keyword", "NO WAI"):
+                    return statements
+                elif self.expect("If-Then/Switch-Case Delimiter", "OIC"):
+                    return statements
                 elif self.expect("Multiline Comment Delimiter", "TLDR"):
                     raise SyntaxError(f"Unexpected TLDR found at line {self.current_token()[2]}, no OBTW found before it.")
                 else:
