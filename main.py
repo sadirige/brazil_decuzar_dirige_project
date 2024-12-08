@@ -112,6 +112,7 @@ class InterpreterApp:
         #(6) Console - Input/Output of the program should be reflected in the console. For variable input, you can add a separate field for user input, or have a dialog box pop up.
         self.console_part = tk.Text(execute_console_part_frame, height=5, wrap="word")
         self.console_part.pack(fill=tk.BOTH, expand=True)
+        self.console_part.config(state="disabled")
 
         #Add the lower part to the vertical paned window
         self.vertical_pw.add(execute_console_part_frame)
@@ -239,7 +240,7 @@ class InterpreterApp:
 
         # for i in lexemes:
         #     print(i)
-        # print(lexemes)
+        print(lexemes)
 
         self.display_lexemes(lexemes)
 
@@ -265,13 +266,14 @@ class InterpreterApp:
     # Updates the Lexemes part of the GUI once the lines of the lolcode in the text editor are tokenized
     # -----------------------------------------------------------------------------------------
     def display_lexemes(self, lexemes):
-        for lexeme, classification, _ in lexemes:
+        for lexeme, classification, line_number in lexemes:
             if lexeme == "\n" and classification == "Linebreak":
                 continue
             elif lexeme == "BTW" or lexeme == "OBTW" or lexeme == "TLDR":
                 continue
             elif classification == "Lexical Error":
-                self.console_part.insert(tk.END, lexeme + "\n")
+                error_message = "Lexical Error: Unrecognized token: " + lexeme + " at line " + str(line_number) + ".\n"
+                self.console_part.insert(tk.END, error_message)
             else:
                 #ignore newline and comments, only show the other more important lexemes
                 self.lexemes.insert('', tk.END, values=(lexeme, classification))

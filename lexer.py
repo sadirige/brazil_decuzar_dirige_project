@@ -5,6 +5,7 @@ import re
 
 regexDictionary = {
     r'\+': "Concatenation Operator",
+    r'!': "Suppression Operator",
     r'[\"][^\"]*[\"]': "String Literal",
     r'\b-?[0-9]+\.[0-9]+\b': "Float Literal",
     r'\b-?[0-9]+\b': "Integer Literal",
@@ -128,8 +129,9 @@ def tokenize(lolcode):
 
             #Check if there are any unrecognized parts left in the line after iterating through all regex
             if not match_found:
-                error_message = "Lexical Error: Unrecognized token: " + line.strip() + " at line " + str(line_number) + "."
-                tokens.append((error_message, "Lexical Error", line_number))
+                # error_message = "Lexical Error: Unrecognized token: " + line.strip() + " at line " + str(line_number) + "."
+                tokens.append((line.strip(), "Lexical Error", line_number))
+                line = ""
             
             match_found = False #Reset flag for next line
 

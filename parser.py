@@ -7,7 +7,7 @@ class Parser:
         self.tokens = tokens
         self.console = console
         self.current_index = 0
-        self.symbol_table = {}      
+        self.symbol_table = {"IT": ("Implicit Variable", "NOOB")}      
         self.ast = {
             "functions": [],        #Comments, Multiline Comments, and Function Definitions before "HAI" and after "KTHXBYE" (functions are what's actually stored, comments are ignoreds)
             "main_program": None,   #Statements between "HAI" and "KTHXBYE"
@@ -24,8 +24,8 @@ class Parser:
 
     def parse_error(self, message):
         self.console.insert(tk.END, message)
-        return self.symbol_table
-        # raise SyntaxError(message)
+        # return self.symbol_table
+        raise SyntaxError(message)
 
     def expect(self, classification, lexeme=None):
         token = self.current_token()
@@ -36,7 +36,7 @@ class Parser:
             self.current_index += 1
         else:
             token = self.current_token()
-            self.parse_error(f"Syntax Error: Expected '{classification} {lexeme}' but found '{token[0]} {token[1]}' at line {token[2]}.")
+            self.parse_error(f"Syntax Error: Expected '{classification} {lexeme}' but found '{token[0]}-{token[1]}' at line {token[2]}.")
 
     def program(self):
         """
@@ -94,9 +94,9 @@ class Parser:
 
         else:
             if program_delimiter == "HAI":
-                raise SyntaxError(f"Unexpected token before 'HAI': {self.current_token()[0]}")
+                self.parse_error(f"Syntax Error: Unexpected token found before 'HAI': {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
             else:
-                raise SyntaxError(f"Unexpected token after 'KTHXBYE': {self.current_token()}")
+                self.parse_error(f"Syntax Error: Unexpected token found after 'KTHXBYE': {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
         
     def funcdef(self):
         """
@@ -124,9 +124,11 @@ class Parser:
                     self.consume("Function Delimiter", "IF U SAY SO")
                     return {"type": "Function Definition", "name": funcident, "param": param, "statements": statements}
                 else:
-                    raise SyntaxError(f"Expected a linebreak or 'IF U SAY SO' after function definition, found {self.current_token()}")
+                    self.parse_error(f"Syntax Error: Expected a linebreak or 'IF U SAY SO' after function definition, found {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
+                    # raise SyntaxError(f"Expected a linebreak or 'IF U SAY SO' after function definition, found {self.current_token()}")
             else:
-                raise SyntaxError(f"Expected a function identifier after 'HOW IZ I', found {self.current_token()}")
+                self.parse_error(f"Syntax Error: Expected a function identifier after 'HOW IZ I', found {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
+                # raise SyntaxError(f"Expected a function identifier after 'HOW IZ I', found {self.current_token()}")
 
     def funcbody(self):
         """
@@ -135,9 +137,11 @@ class Parser:
         statements = []
         while not self.expect("Function Delimiter", "IF U SAY SO"):
             if self.expect("Code Delimiter", "HAI"):
-                raise SyntaxError(f"Unexpected 'HAI' found before 'IF U SAY SO': {self.current_token()}")
+                self.parse_error(f"Syntax Error: Unexpected 'HAI' found before 'IF U SAY SO' at line {self.current_token()[2]}.")
+                # raise SyntaxError(f"Unexpected 'HAI' found before 'IF U SAY SO': {self.current_token()}")
             elif self.current_token() is None:
-                raise SyntaxError("No 'IF U SAY SO' found, missing function delimiter.")
+                self.parse_error("Syntax Error: No 'IF U SAY SO' found, missing function delimiter.")
+                # raise SyntaxError("No 'IF U SAY SO' found, missing function delimiter.")
             elif self.expect("Return With Value") or self.expect("Break/Return"):
                 statements.append(self.funcret())
                 break
@@ -160,9 +164,11 @@ class Parser:
                 else:
                     return {"type": "Parameter", "name": varident}
             else:
-                raise SyntaxError(f"Expected a variable identifier after 'YR', found {self.current_token()}")
+                self.parse_error(f"Syntax Error: Expected a variable identifier after 'YR', found {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
+                # raise SyntaxError(f"Expected a variable identifier after 'YR', found {self.current_token()}")
         else:
-            raise SyntaxError(f"Expected 'YR' after 'HOW IZ I', found {self.current_token()}")
+            self.parse_error(f"Syntax Error: Expected 'YR' after 'HOW IZ I', found {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
+            # raise SyntaxError(f"Expected 'YR' after 'HOW IZ I', found {self.current_token()}")
 
     def paramext(self):
         """
@@ -179,9 +185,11 @@ class Parser:
                 else:
                     return {"type": "Parameter", "name": varident}
             else:
-                raise SyntaxError(f"Expected a variable identifier after 'YR', found {self.current_token()}")
+                self.parse_error(f"Syntax Error: Expected a variable identifier after 'AN YR', found {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
+                # raise SyntaxError(f"Expected a variable identifier after 'YR', found {self.current_token()}")
         else:
-            raise SyntaxError(f"Expected 'AN' after 'YR', found {self.current_token()}")
+            self.parse_error(f"Syntax Error: Expected 'AN' after 'YR', found {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
+            # raise SyntaxError(f"Expected 'AN' after 'YR', found {self.current_token()}")
 
     def funcret(self):
         """
@@ -199,13 +207,15 @@ class Parser:
                 self.consume("Linebreak")
                 return {"type": "Return", "value": expr}
             else:
-                raise SyntaxError(f"Expected a variable identifier or expression after 'FOUND YR', found {self.current_token()}")
+                self.parse_error(f"Syntax Error: Expected a variable identifier or expression after 'FOUND YR', found {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
+                # raise SyntaxError(f"Expected a variable identifier or expression after 'FOUND YR', found {self.current_token()}")
         elif self.expect("Break/Return"):
             self.consume("Break/Return")
             self.consume("Linebreak")
             return {"type": "Break"}
         else:
-            raise SyntaxError(f"Expected 'FOUND YR' or 'GTFO', found {self.current_token()}")
+            self.parse_error(f"Syntax Error: Expected 'FOUND YR' or 'GTFO', found {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
+            # raise SyntaxError(f"Expected 'FOUND YR' or 'GTFO', found {self.current_token()}")
         
     def funccall(self):
         """
@@ -225,11 +235,14 @@ class Parser:
                     self.consume("Function Call Delimiter", "MKAY")
                     return {"type": "Function Call", "name": funcident, "param": param}
                 else:
-                    raise SyntaxError(f"Expected 'MKAY' or 'YR' after function identifier, found {self.current_token()}")
+                    self.parse_error(f"Syntax Error: Expected 'MKAY' after function identifier, found {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
+                    # raise SyntaxError(f"Expected 'MKAY' or 'YR' after function identifier, found {self.current_token()}")
             else:
-                raise SyntaxError(f"Expected a function identifier after 'I IZ', found {self.current_token()}")
+                self.parse_error(f"Syntax Error: Expected a function identifier after 'I IZ', found {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
+                # raise SyntaxError(f"Expected a function identifier after 'I IZ', found {self.current_token()}")
         else:
-            raise SyntaxError(f"Expected 'I IZ' after 'HOW IZ I', found {self.current_token()}")
+            self.parse_error(f"Syntax Error: Expected 'I IZ' after 'HOW IZ I', found {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
+            # raise SyntaxError(f"Expected 'I IZ' after 'HOW IZ I', found {self.current_token()}")
 
     def typecast(self):
         """
@@ -237,18 +250,21 @@ class Parser:
         <type> ::= A TROOF | A NUMBR | A NUMBAR | YARN
         """
         self.consume("Typecasting Declaration")
-        self.consume("Typecasting Assignment")
+        # self.consume("Typecasting Assignment")
         if self.expect("Variable Identifier"):
             varident = self.current_token()[0]
             self.consume("Variable Identifier")
+            self.consume("Typecasting Assignment")
             if self.expect("Type Literal"):
                 type = self.current_token()[0]
                 self.consume("Type Literal")
                 return {"type": "Typecast", "variable": varident, "typing": type}
             else:
-                raise SyntaxError(f"Expected a type after 'MAEK', found {self.current_token()}")
+                self.parse_error(f"Syntax Error: Expected a type after 'MAEK', found {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
+                # raise SyntaxError(f"Expected a type after 'MAEK', found {self.current_token()}")
         else:
-            raise SyntaxError(f"Expected a variable identifier after 'MAEK', found {self.current_token}")
+            self.parse_error(f"Syntax Error: Expected a variable identifier after 'MAEK', found {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
+            # raise SyntaxError(f"Expected a variable identifier after 'MAEK', found {self.current_token}")
 
     def retype(self):
         """
@@ -264,7 +280,8 @@ class Parser:
                     self.consume("Type Literal")
                     return {"type": "Retype", "variable": varident, "retyping": type}
                 else:
-                    raise SyntaxError(f"Expected a type after 'IS NOW', found {self.current_token()}")
+                    self.parse_error(f"Syntax Error: Expected a type after 'IS NOW', found {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
+                    # raise SyntaxError(f"Expected a type after 'IS NOW', found {self.current_token()}")
             elif self.expect("Typecast", "MAEK"):
                 self.consume("Typecast", "MAEK")
                 if self.expect("Variable Identifier"):
@@ -277,15 +294,20 @@ class Parser:
                             self.consume("Type")
                             return {"type": "Retype", "variable": varident, "retyping": type}
                         else:
-                            raise SyntaxError(f"Expected a type after 'A', found {self.current_token()}")
+                            self.parse_error
+                            # raise SyntaxError(f"Expected a type after 'A', found {self.current_token()}")
                     else:
-                        raise SyntaxError(f"Expected 'A' after variable identifier, found {self.current_token()}")
+                        self.parse_error(f"Syntax Error: Expected 'A' after variable identifier, found {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
+                        # raise SyntaxError(f"Expected 'A' after variable identifier, found {self.current_token()}")
                 else:
-                    raise SyntaxError(f"Expected a variable identifier after 'MAEK', found {self.current_token()}")
+                    self.parse_error(f"Syntax Error: Expected a variable identifier after 'MAEK', found {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
+                    # raise SyntaxError(f"Expected a variable identifier after 'MAEK', found {self.current_token()}")
             else:
-                raise SyntaxError(f"Expected 'IS NOW' or 'MAEK' after variable identifier, found {self.current_token()}")
+                self.parse_error(f"Syntax Error: Expected 'IS NOW' or 'MAEK' after variable identifier, found {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
+                # raise SyntaxError(f"Expected 'IS NOW' or 'MAEK' after variable identifier, found {self.current_token()}")
         else:
-            raise SyntaxError(f"Expected a variable identifier after 'MAEK', found {self.current_token()}")
+            self.parse_error(f"Syntax Error: Expected a variable identifier after 'MAEK', found {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
+            # raise SyntaxError(f"Expected a variable identifier after 'MAEK', found {self.current_token()}")
         
     def loop(self):
         """
@@ -300,29 +322,39 @@ class Parser:
                 loopident = self.current_token()[0]
                 self.consume("Variable Identifier")
                 if self.expect("Increment Keyword") or self.expect("Decrement Keyword"):
-                    loopop = self.loopop()
+                    loopop = self.current_token()[1]
+                    self.consume(loopop)
                     self.consume("Variable Call", "YR")
                     if self.expect("Variable Identifier"):
                         varident = self.current_token()[0]
                         self.consume("Variable Identifier")
                         if self.expect("Loop Until") or self.expect("Loop While"):
-                            loopcond = self.loopcond()
-                            if self.expect("Equal") or self.expect("Not Equal"):
-                                cond = self.conditionals()
+                            loopcond = self.current_token()[1]
+                            self.consume(loopcond)
+                            expression = ["Add", "Subtract", "Multiply", "Divide", "Modulo", "Max", "Min", "And", "Or", "Xor", "Not", "Any", "All", "Equal", "Not Equal"]
+                            
+                            if self.current_token()[1] in expression:
+                                cond = self.expr()
                                 if self.expect("Linebreak"):
                                     self.consume("Linebreak")
                                     body = self.loopbody()
                                     self.consume("Loop Delimiter", "IM OUTTA YR")
                                     self.consume("Variable Identifier", loopident)
-                                    return {"type": "Loop", "name": loopident, "operation": loopop, "condition": loopcond, "loop condition": cond, "variable": varident, "body": body}
+                                    return {"type": "Loop", "name": loopident, "operation": loopop, "condition": loopcond, "loop_condition": cond, "variable": varident, "body": body}
                                 else:
-                                    raise SyntaxError(f"Expected a linebreak after variable identifier, found {self.current_token()}")
+                                    self.parse_error(f"Syntax Error: Expected a linebreak after loop body, found {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
+                            else:
+                                self.parse_error(f"Syntax Error: Expected a loop condition after variable identifier, found {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
+                        else:
+                            return {"type": "Loop", "name": loopident, "operation": loopop, "variable": varident, "body": self.loopbody()}
                     else:
-                        raise SyntaxError(f"Expected a variable identifier after loop operation, found {self.current_token()}")
+                        self.parse_error(f"Syntax Error: Expected a variable identifier after loop operation, found {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
+                else:
+                    self.parse_error(f"Syntax Error: Expected a loop operation after variable identifier, found {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
             else:
-                raise SyntaxError(f"Expected a variable identifier after 'IM IN YR', found {self.current_token()}")
+                self.parse_error(f"Syntax Error: Expected a variable identifier after 'IM IN YR', found {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
         else:
-            raise SyntaxError(f"Expected 'IM IN YR' after 'HOW IZ I', found {self.current_token()}")
+            self.parse_error(f"Syntax Error: Expected 'IM IN YR' after 'HOW IZ I', found {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
 
     def loopbody(self):
         """
@@ -331,9 +363,9 @@ class Parser:
         statements = []
         while not self.expect("Loop Delimiter", "IM OUTTA YR"):
             if self.expect("Code Delimiter", "HAI"):
-                raise SyntaxError(f"Unexpected 'HAI' found before 'IM OUTTA YR': {self.current_token()}")
+                self.parse_error(f"Syntax Error: Unexpected 'HAI' found before 'IM OUTTA YR' at line {self.current_token()[2]}.")
             elif self.current_token() is None:
-                raise SyntaxError("No 'IM OUTTA YR' found, missing loop delimiter.")
+                self.parse_error("Syntax Error: No 'IM OUTTA YR' found, missing loop delimiter.")
             elif self.expect("Return With Value") or self.expect("Break/Return"):
                 statements.append(self.funcret())
                 break
@@ -341,36 +373,6 @@ class Parser:
             else:
                 statements.append(self.statement())
         return statements
-    
-    def loopop(self):
-        """
-        <loopop> ::= UPPIN | NERFIN
-        """
-        if self.current_token()[1] == "Increment Keyword":
-            loopop = self.current_token()[0]
-            self.consume("Increment Keyword")
-        elif self.current_token()[1] == "Decrement Keyword":
-            loopop = self.current_token()[0]
-            self.consume("Decrement Keyword")
-        else:
-            raise SyntaxError(f"Expected a loop operation after variable identifier, found {self.current_token()}")
-        
-        return loopop
-    
-    def loopcond(self):
-        """
-        <loopcond> ::= TIL | WILE
-        """
-        if self.current_token()[1] == "Loop Until":
-            loopcond = self.current_token()[0]
-            self.consume("Loop Until")
-        elif self.current_token()[1] == "Loop While":
-            loopcond = self.current_token()[0]
-            self.consume("Loop While")
-        else:
-            raise SyntaxError(f"Expected a loop condition after variable identifier, found {self.current_token()}")
-        
-        return loopcond
     
     def conditionals(self):
         """
@@ -401,7 +403,8 @@ class Parser:
                             conditionals.append(self.current_token())
                             self.consume("Integer Literal")
                     else:
-                        raise SyntaxError(f"Expected another operator and only found one")
+                        self.parse_error(f"Syntax Error: Expected another operator and only found one.")
+                        # raise SyntaxError(f"Expected another operator and only found one")
                 elif self.expect("Max") or self.expect("Min"):
                     if self.expect("Max"):
                         conditionals.append(self.math())
@@ -420,7 +423,8 @@ class Parser:
                                 conditionals.append(self.current_token())
                                 self.consume("Integer Literal")
                         else:
-                            raise SyntaxError(f"Expected another operator and only found one")
+                            self.parse_error(f"Syntax Error: Expected another operator and only found one.")
+                            # raise SyntaxError(f"Expected another operator and only found one")
                     elif self.expect("Min"):
                         conditionals.append(self.math())
                         self.consume("Min")
@@ -438,7 +442,8 @@ class Parser:
                                 conditionals.append(self.current_token())
                                 self.consume("Integer Literal")
                         else:
-                            raise SyntaxError(f"Expected another operator and only found one")
+                            self.parse_error(f"Syntax Error: Expected another operator and only found one.")
+                            # raise SyntaxError(f"Expected another operator and only found one")
                 elif self.expect("Integer Literal"):
                     conditionals.append(self.current_token())
                     self.consume("Integer Literal")
@@ -456,7 +461,8 @@ class Parser:
                             conditionals.append(self.current_token())
                             self.consume("Integer Literal")
                     else:
-                        raise SyntaxError(f"Expected another operator and only found one")
+                        self.parse_error(f"Syntax Error: Expected another operator and only found one.")
+                        # raise SyntaxError(f"Expected another operator and only found one")
             elif self.expect("Not Equal"):
                 self.consume("Not Equal")
                 if self.expect("Variable Identifier"):
@@ -475,7 +481,8 @@ class Parser:
                             conditionals.append(self.current_token())
                             self.consume("Integer Literal")
                     else:
-                        raise SyntaxError(f"Expected another operator and only found one")
+                        self.parse_error(f"Syntax Error: Expected another operator and only found one.")
+                        # raise SyntaxError(f"Expected another operator and only found one")
                 elif self.expect("Max") or self.expect("Min"):
                     if self.expect("Max"):
                         conditionals.append(self.math())
@@ -494,7 +501,8 @@ class Parser:
                                 conditionals.append(self.current_token())
                                 self.consume("Integer Literal")
                         else:
-                            raise SyntaxError(f"Expected another operator and only found one")
+                            self.parse_error(f"Syntax Error: Expected another operator and only found one.")
+                            # raise SyntaxError(f"Expected another operator and only found one")
                     elif self.expect("Min"):
                         conditionals.append(self.math())
                         self.consume("Min")
@@ -512,7 +520,8 @@ class Parser:
                                 conditionals.append(self.current_token())
                                 self.consume("Integer Literal")
                         else:
-                            raise SyntaxError(f"Expected another operator and only found one")
+                            self.parse_error(f"Syntax Error: Expected another operator and only found one.")
+                            # raise SyntaxError(f"Expected another operator and only found one")
                 elif self.expect("Integer Literal"):
                     conditionals.append(self.current_token())
                     self.consume("Integer Literal")
@@ -530,7 +539,8 @@ class Parser:
                             conditionals.append(self.current_token())
                             self.consume("Integer Literal")
                     else:
-                        raise SyntaxError(f"Expected another operator and only found one")
+                        self.parse_error(f"Syntax Error: Expected another operator and only found one.")
+                        # raise SyntaxError(f"Expected another operator and only found one")
         return conditionals
              
 
@@ -639,11 +649,10 @@ class Parser:
                         <multcomment> <statement>            | <multcomment>
         """
         statements = []
-        while self.current_token and not self.expect("Code Delimiter", "KTHXBYE"):
+        while self.current_token() and not self.expect("Code Delimiter", "KTHXBYE"):
             if self.current_token()[1] == "Function Delimiter":
-                raise SyntaxError(f"Unexpected function definition: {self.current_token()} before KTHXBYE.")
-            elif self.current_token() is None:
-                raise SyntaxError("No KTHXBYE found, missing code delimiter.")
+                self.parse_error(f"Syntax Error: Unexpected function definition: {self.current_token()} before KTHXBYE.")
+                # raise SyntaxError(f"Unexpected function definition: {self.current_token()} before KTHXBYE.")
             else:
                 expr_ops = ["Add", "Subtract", "Multiply", "Divide", "Modulo", "Max", "Min", "And", "Or", "Xor", "Not", "Any", "All", "Equal", "Not Equal"]
                 if self.expect("Output Keyword"):  #VISIBLE keyword (print)
@@ -656,7 +665,7 @@ class Parser:
                     statements.append(self.expr())
                 elif self.expect("Concatenation"):  #SMOOSH keyword (concatenate)
                     statements.append(self.concatenate())
-                elif self.expect("Typecast", "MAEK"):  #MAEK keyword (typecast)
+                elif self.expect("Typecasting Declaration", "MAEK"):  #MAEK keyword (typecast)
                     statements.append(self.typecast())
                 elif self.expect("Variable Identifier") and self.next_token()[1] == "Typecasting Reassignment":  #IS NOW A keyword (retype)
                     statements.append(self.retype())
@@ -677,12 +686,15 @@ class Parser:
                     if self.expect("Loop Delimiter", "IM OUTTA YR"):
                         break
                 elif self.expect("Multiline Comment Delimiter", "TLDR"):
-                    raise SyntaxError(f"Unexpected TLDR found at line {self.current_token()[2]}, no OBTW found before it.")
+                    self.parse_error(f"Syntax Error: Unexpected TLDR found at line {self.current_token()[2]}, no OBTW found before it.")
+                    # raise SyntaxError(f"Unexpected TLDR found at line {self.current_token()[2]}, no OBTW found before it.")
                 else:
-                    raise SyntaxError(f"Unexpected token in statement: {self.current_token()}, with next token {self.next_token()}")
+                    self.parse_error(f"Syntax Error: Unexpected token in statement: {self.current_token()}, with next token {self.next_token()}")
+                    # raise SyntaxError(f"Unexpected token in statement: {self.current_token()}, with next token {self.next_token()}")
                 
         if self.current_token() is None:
-            raise SyntaxError("No KTHXBYE found, missing code delimiter.")
+            self.parse_error("Syntax Error: No KTHXBYE found, missing code delimiter.")
+            # raise SyntaxError("No KTHXBYE found, missing code delimiter.")
         else:
             #KTHBYE should be what's next in the tokens list since we've exhausted all statements
             return statements
@@ -692,7 +704,8 @@ class Parser:
         <print> ::= VISIBLE <operand> <printext> |
                     VISIBLE <expr> <printext> 
                     VISIBLE <operand> |
-                    VISIBLE <expr> |   
+                    VISIBLE <expr> |
+        BONUS: optional '!' at the end of the print statement to suppress newline   
         """
         self.consume("Output Keyword")
         
@@ -701,22 +714,34 @@ class Parser:
 
         expression = ["Add", "Subtract", "Multiply", "Divide", "Modulo", "Max", "Min", "And", "Or", "Xor", "Not", "Any", "All", "Equal", "Not Equal"]
 
+        suppress_newline = False
         value = []
         if self.current_token()[1] in operand or self.current_token()[0] == "NOOB":
             value.append(self.operand())
             value.extend(self.printext())
+            if self.expect("Suppression Operator"):
+                self.consume("Suppression Operator")
+                suppress_newline = True
         elif self.current_token()[1] in expression:
             value.append(self.expr())
             value.extend(self.printext())
+            if self.expect("Suppression Operator"):
+                self.consume("Suppression Operator")
+                suppress_newline = True
         elif self.expect("Concatenation"):
             value.append(self.concatenate())
             value.extend(self.printext())
+            if self.expect("Suppression Operator"):
+                self.consume("Suppression Operator")
+                suppress_newline = True
         else:
-            raise SyntaxError(f"Expected an operand or expression, found {self.current_token()}")
+            self.parse_error(f"Syntax Error: Expected an operand or expression, found {self.current_token()}")
+            # raise SyntaxError(f"Expected an operand or expression, found {self.current_token()}")
         
         return {
             "type": "Print",
-            "value": value
+            "value": value,
+            "suppress_newline": suppress_newline
         }
 
     def operand(self):
@@ -764,7 +789,8 @@ class Parser:
         elif self.expect("Concatenation"):
             return self.concatenate()
         else:
-            raise SyntaxError(f"Expected an expression, found {self.current_token()}")
+            self.parse_error(f"Syntax Error: Expected an expression, found {self.current_token()}")
+            # raise SyntaxError(f"Expected an expression, found {self.current_token()}")
         
     def printext(self):
         """
@@ -784,7 +810,8 @@ class Parser:
             elif self.current_token()[1] in expression:
                 concat.append(self.expr())
             else:
-                raise SyntaxError(f"Expected an operand or expression, found {self.current_token()}")
+                self.parse_error(f"Syntax Error: Expected an operand or expression, found {self.current_token()}")
+                # raise SyntaxError(f"Expected an operand or expression, found {self.current_token()}")
         return concat
     
     def scan(self):
@@ -797,7 +824,8 @@ class Parser:
             self.consume("Variable Identifier")
             return {"type": "Scan", "variable": varident}
         else:
-            raise SyntaxError(f"Expected a variable identifier after 'GIMMEH', found {self.current_token()}")
+            self.parse_error(f"Syntax Error: Expected a variable identifier after 'GIMMEH', found {self.current_token()}")
+            # raise SyntaxError(f"Expected a variable identifier after 'GIMMEH', found {self.current_token()}")
         
     def comment(self):
         """
@@ -816,7 +844,8 @@ class Parser:
         self.consume("Linebreak")
         while not self.expect("Multiline Comment Delimiter"):
             if self.current_token() is None:
-                raise SyntaxError(f"Missing TLDR for OBTW at line {obtw_line} making the multiline comment unclosed.")
+                self.parse_error(f"Syntax Error: Missing TLDR for OBTW at line {obtw_line} making the multiline comment unclosed.")
+                # raise SyntaxError(f"Missing TLDR for OBTW at line {obtw_line} making the multiline comment unclosed.")
             self.consume("Linebreak")
         self.consume("Multiline Comment Delimiter", "TLDR")
         self.consume("Linebreak")
@@ -841,11 +870,13 @@ class Parser:
             elif self.expect("Typecasting Declaration"):
                 value = self.typecast()
             else:
-                raise SyntaxError(f"Expected an operand or expression, found {self.current_token()}")
+                self.parse_error(f"Syntax Error: Expected an operand or expression, found {self.current_token()}")
+                # raise SyntaxError(f"Expected an operand or expression, found {self.current_token()}")
             self.consume("Linebreak")
             return {"type": "Assignment", "variable": varident, "value": value}
         else:
-            raise SyntaxError(f"Expected a variable identifier, found {self.current_token()}")
+            self.parse_error(f"Syntax Error: Expected a variable identifier after 'R', found {self.current_token()}")
+            # raise SyntaxError(f"Expected a variable identifier, found {self.current_token()}")
     
     def math(self):
         """
@@ -866,7 +897,8 @@ class Parser:
                 "right": right
             }
         else:
-            raise SyntaxError(f"Expected a Math Operator, but found {self.current_token()}")
+            self.parse_error(f"Syntax Error: Expected a Math Operator, but found {self.current_token()}")
+            # raise SyntaxError(f"Expected a Math Operator, but found {self.current_token()}")
 
     def mathext(self):
         """
@@ -879,25 +911,23 @@ class Parser:
         elif self.current_token()[1] in math_ops:
             return self.math()
         else:
-            raise SyntaxError(f"Unexpected token {self.current_token()} while parsing mathext")
-        
+            self.parse_error(f"Syntax Error: Unexpected token {self.current_token()} while parsing mathext")
+    
     def boolean(self):
         """
-        <boolean> ::=   <booloperator> OF <operand> AN <operand> |
-                        <boolmulti> OF <booleanexpr> <booleanext> MKAY
-        <booloperator> ::= BOTH | EITHER | WON
-        <boolmulti> ::= ALL | ANY
+        <boolean> ::= <booloperator> OF <boolext> AN <boolext> |
+                      <boolmulti> OF <boolext> <boolmore> MKAY 
         """
         bool_ops = ["And", "Or", "Xor"]
         bool_multi = ["All", "Any"]
-        
+
         if self.current_token()[1] in bool_ops:
             operator = self.current_token()[1]
             self.consume(operator)
             self.consume("First One Keyword", "OF")
-            left = self.operand()
+            left = self.boolext()
             self.consume("Another One Keyword", "AN")
-            right = self.operand()
+            right = self.boolext()
             return {
                 "type": "Boolean",
                 "operator": operator,
@@ -908,8 +938,8 @@ class Parser:
             operator = self.current_token()[1]
             self.consume(operator)
             self.consume("First One Keyword", "OF")
-            operands = [self.booleanexpr()]
-            operands.extend(self.booleanext())
+            operands = [self.boolext()]
+            operands.extend(self.boolmore())
             return {
                 "type": "Boolean",
                 "operator": operator,
@@ -917,60 +947,49 @@ class Parser:
             }
         elif self.expect("Not", "NOT"):
             self.consume("Not", "NOT")
-            operand = self.operand()
+            operand = self.boolext()
             return {
                 "type": "Boolean",
                 "operator": "Not",
                 "operand": operand
             }
         else:
-            raise SyntaxError(f"Expected a boolean operator, found {self.current_token()}")
-        
-    def booleanexpr(self):
-        """
-        <booleanexpr> ::= <booloperator> OF <operand> AN <operand> | NOT <operand> | <operand>
-        """
-        bool_ops = ["And", "Or", "Xor"]
-        operand = ["Variable Identifier", "Integer Literal", "Float Literal", "String Delimiter", "Boolean Literal"]
-        if self.current_token()[1] in bool_ops:
-            operator = self.current_token()[1]
-            self.consume(operator)
-            self.consume("First One Keyword", "OF")
-            left = self.operand()
-            self.consume("Another One Keyword", "AN")
-            right = self.operand()
-            return {
-                "type": "Boolean",
-                "operator": operator,
-                "left": left,
-                "right": right
-            }
-        elif self.expect("Boolean Operator", "Not"):
-            self.consume("Boolean Operator", "Not")
-            operand = self.operand()
-            return {
-                "type": "Boolean",
-                "operator": "Not",
-                "operand": operand
-            }
-        elif self.current_token()[1] in operand:
-            return self.operand()
-        else:
-            raise SyntaxError(f"Expected a boolean operator, found {self.current_token()}")
+            self.parse_error(f"Syntax Error: Expected a boolean operator, found {self.current_token()}")
 
-    def booleanext(self):
+    def boolext(self):
         """
-        <booleanext> ::= AN <booleanexpr> |
-                         AN <booleanexpr> <booleanext>
+        <boolext> ::= <operand> | <boolean> | NOT <operand> | NOT <boolean>
+        """
+        literal_varident = ["Variable Identifier", "Integer Literal", "Float Literal", "String Delimiter", "Boolean Literal"]
+        bool_ops = ["And", "Or", "Xor"]
+        if self.current_token()[1] in literal_varident:
+            return self.operand()
+        elif self.current_token()[1] in bool_ops:
+            return self.boolean()
+        elif self.expect("Not", "NOT"):
+            self.consume("Not", "NOT")
+            operand = self.boolext()
+            return {
+                "type": "Boolean",
+                "operator": "Not",
+                "operand": operand
+            }
+        else:
+            self.parse_error(f"Syntax Error: Unexpected token {self.current_token()} while parsing boolext")
+            # raise SyntaxError(f"Unexpected token {self.current_token()} while parsing boolext")
+
+    def boolmore(self):
+        """
+        <boolmore> ::= AN <boolext> | AN <boolext> <boolmore>
         """
         self.consume("Another One Keyword", "AN")
         operands = []
         while self.current_token and not self.expect("Function Call Delimiter", "MKAY"):
-            operands.append(self.booleanexpr())
+            operands.append(self.boolext())
             if self.expect("Another One Keyword", "AN"):
                 self.consume("Another One Keyword", "AN")
         if self.current_token() is None:
-            raise SyntaxError("No MKAY found, missing boolean delimiter.")
+            self.parse_error("Syntax Error: No MKAY found, missing boolean delimiter.")
         else:
             self.consume("Function Call Delimiter", "MKAY")
             return operands
@@ -1012,7 +1031,8 @@ class Parser:
                 rel_op = "Less Than or Equal"
                 self.consume("Min")
             else:
-                raise SyntaxError(f"Expected a relational operator, found {self.current_token()}")
+                self.parse_error(f"Syntax Error: Expected a relational operator, found {self.current_token()}")
+                # raise SyntaxError(f"Expected a relational operator, found {self.current_token()}")
         elif operator == "Not Equal":
             if self.expect("Max"):
                 rel_op = "Less Than"
@@ -1021,9 +1041,11 @@ class Parser:
                 rel_op = "Greater Than"
                 self.consume("Min")
             else:
-                raise SyntaxError(f"Expected a relational operator, found {self.current_token()}")
+                self.parse_error(f"Syntax Error: Expected a relational operator, found {self.current_token()}")
+                # raise SyntaxError(f"Expected a relational operator, found {self.current_token()}")
         else:
-            raise SyntaxError(f"Expected a comparison operator, found {self.current_token()}")
+            self.parse_error(f"Syntax Error: Expected a comparison operator, found {self.current_token()}")
+            # raise SyntaxError(f"Expected a comparison operator, found {self.current_token()}")
 
         self.consume("First One Keyword")
         left_again = self.operand()
@@ -1037,7 +1059,8 @@ class Parser:
                 "right": right
             }
         else:
-            raise SyntaxError(f"Expected the same operand in relational operation, found {left} and {left_again}")
+            self.parse_error(f"Syntax Error: Expected the same operand in relational operation, found {left} and {left_again}")
+            # raise SyntaxError(f"Expected the same operand in relational operation, found {left} and {left_again}")
 
     def concatenate(self):
         """
@@ -1075,19 +1098,8 @@ class Parser:
         if self.expect("Variable Delimiter", "WAZZUP"):
             self.consume("Variable Delimiter", "WAZZUP")
             self.consume("Linebreak")
-
             vardefs = []
-            while not self.expect("Variable Delimiter", "BUHBYE"):
-                if self.expect("Comment"):
-                    self.comment()
-                elif self.expect("Multiline Comment Delimiter", "OBTW"):
-                    self.multcomment()
-                else:
-                    vardefs.extend(self.vardef())
-
-            if self.current_token is None:
-                raise SyntaxError("No BUHBYE found, missing variable delimiter.")
-
+            vardefs.extend(self.vardef())
             self.consume("Variable Delimiter", "BUHBYE")
             return vardefs
         else:
@@ -1101,7 +1113,7 @@ class Parser:
                        I HAS A varident ITZ <expr> <linebreak>
         """
         vardefs = []
-        while not self.expect("Variable Delimiter", "BUHBYE"):
+        while self.current_token() and not self.expect("Variable Delimiter", "BUHBYE"):
             #I HAS A
             if self.expect("Variable Declaration"):
                 self.consume("Variable Declaration")
@@ -1128,8 +1140,6 @@ class Parser:
                                 "name": varident,
                                 "value": value
                             })
-                            # print("literal")
-                            # print(value["value"])
                             self.symbol_table[varident] = (value["classification"], value["value"])
                         #<expr>
                         elif self.current_token()[1] in expression:
@@ -1143,9 +1153,9 @@ class Parser:
                                 "name": varident,
                                 "value": value
                             })
-                            # self.symbol_table[varident] = value["value"]
+                            #if expr, don't add to symbol table yet, it will be added during evaluation (semantic_analyzer part)
                         else:
-                            raise SyntaxError(f"Expected a literal, expression or linebreak, found {self.current_token()}")
+                            self.parse_error(f"Syntax Error: Expected a literal, expression or linebreak, found {self.current_token()}")
                     elif self.expect("Comment"):
                         self.comment()
                         vardefs.append({
@@ -1153,7 +1163,7 @@ class Parser:
                             "name": varident,
                             "value": {"type": "Variable Definition", "value": "NOOB", "classification": "Type Literal"}
                         })
-                        self.symbol_table[varident] = ("Noob Keyword", "NOOB")
+                        self.symbol_table[varident] = ("Type Literal", "NOOB")
                     elif self.expect("Linebreak"):
                         self.consume("Linebreak")
                         vardefs.append({
@@ -1161,11 +1171,11 @@ class Parser:
                             "name": varident,
                             "value": {"type": "Variable Definition", "value": "NOOB", "classification": "Type Literal"}
                         })
-                        self.symbol_table[varident] = ("Noob Keyword", "NOOB")
+                        self.symbol_table[varident] = ("Type Literal", "NOOB")
                     else:
-                        raise SyntaxError(f"Expected a variable assignment or linebreak, found {self.current_token()}")
+                        self.parse_error(f"Syntax Error: Expected a variable assignment or linebreak, found {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
                 else:
-                    raise SyntaxError(f"Expected a variable identifier, found {self.current_token()}")
+                    self.parse_error(f"Syntax Error: Expected a variable identifier, found {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
             elif self.expect("Comment"):
                 self.comment()
             elif self.expect("Multiline Comment Delimiter", "OBTW"):
@@ -1173,8 +1183,11 @@ class Parser:
             elif self.expect("Linebreak"):
                 self.consume("Linebreak")
             else:
-                raise SyntaxError(f"Expected a variable declaration, found {self.current_token()}")
-            
-        return vardefs
+                self.parse_error(f"Syntax Error: Expected a comment, variable declaration, or BUHBYE but found {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
+        
+        if self.current_token() is None:
+            self.parse_error("Syntax Error: No BUHBYE found, missing variable delimiter.")
+        else:
+            return vardefs
 
         

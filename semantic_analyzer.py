@@ -13,8 +13,6 @@ class SemanticAnalyzer:
         #store functions defined in the symbol table
         for function in self.ast["functions"]:
             self.symbol_table[function["name"]] = function
-
-        # print(self.symbol_table)
             
         #variables declared between WAZZUP and BUHBYE should already be in the symbol table (added during syntax analysis)
         variables = self.ast["main_program"]["variables"]
@@ -33,7 +31,7 @@ class SemanticAnalyzer:
 
     def execute_statement(self, node):
         if node["type"] == "Print":
-            self.console_output(node["value"])
+            self.console_output(node["value"], node["suppress_newline"])
         elif node["type"] == "Scan":
             # check if variable was declared by checking in the symbol_table
             if node["variable"] not in self.symbol_table:
@@ -45,6 +43,8 @@ class SemanticAnalyzer:
             print(self.symbol_table[node["variable"]])
         elif node["type"] == "Retype":
             self.execute_retype(node["variable"], node["retyping"])
+        elif node["type"] == "Loop":
+            self.execute_loop(node)
             
         # elif node["type"] == "FunctionCall":
         #     self.execute_function_call(node)
@@ -73,21 +73,34 @@ class SemanticAnalyzer:
         dialog.wait_window()
         return user_input
 
+    def execute_loop(self, node):
+        #loop as long as loop_condition is true
+        if node["condition"] == "Loop While":
+            while self.execute_boolean(node["loop_condition"]):
+                for statement in node["statements"]:
+                    self.execute_statement(statement)
+
     def execute_retype(self, var_name, new_type):
         if new_type == "NUMBAR":
             self.symbol_table[var_name] = ("Float Literal", float(self.symbol_table[var_name][1]))
+        elif new_type == "NUMBR":
+            self.symbol_table[var_name] = ("Integer Literal", int(self.symbol_table[var_name][1]))
         elif new_type == "TROOF":
             if self.symbol_table[var_name][1] == 0:
                 self.symbol_table[var_name] = ("Boolean Literal", "FAIL")
             else:
                 self.symbol_table[var_name] = ("Boolean Literal", "WIN")
+        elif new_type == "YARN":
+            self.symbol_table[var_name] = ("String Literal", str(self.symbol_table[var_name][1]))
 
     def console_input(self, var_name):
         user_input = self.input_dialog("Input", "Enter input:")
+        self.console.config(state=tk.NORMAL)
         self.console.insert(tk.END, user_input + "\n")
+        self.console.config(state=tk.DISABLED)
         self.symbol_table[var_name] = ("String Literal", user_input)
 
-    def console_output(self, to_print):
+    def console_output(self, to_print, suppress_newline):
         #value to print is an operand (varident or literal)
         text = ""
         while to_print:
@@ -116,9 +129,13 @@ class SemanticAnalyzer:
                 elif item["type"] == "Comparison" or item["type"] == "Relational":
                     text += self.execute_comparison_relational(item)
                 
-
-        text += "\n"
-        self.console.insert(tk.END, text)
+        self.console.config(state=tk.NORMAL)
+        if suppress_newline:
+            self.console.insert(tk.END, text)
+        else:
+            text += "\n"
+            self.console.insert(tk.END, text)
+        self.console.config(state=tk.DISABLED)
 
     def execute_comparison_relational(self, node):
         left = node["left"]
@@ -129,10 +146,7 @@ class SemanticAnalyzer:
         elif left["type"] == "Math":
             left = self.execute_math(left)
         elif not isinstance(left,float) and left["type"] == "Operand" and left["classification"] == "Boolean Literal":
-            if left["value"] == "FAIL":
-                left = 0
-            else:
-                left = 1
+            left = 0 if left["value"] == "FAIL" else 1
         elif left["type"] == "Operand" and left["classification"] == "Integer Literal":
             left = int(left["value"])
         elif left["type"] == "Operand" and left["classification"] == "Float Literal":
@@ -146,10 +160,7 @@ class SemanticAnalyzer:
         elif right["type"] == "Math":
             right = self.execute_math(right)
         elif not isinstance(right,float) and right["type"] == "Operand" and right["classification"] == "Boolean Literal":
-            if right["value"] == "FAIL":
-                right = 0
-            else:
-                right = 1
+            right = 0 if right["value"] == "FAIL" else 1
         elif right["type"] == "Operand" and right["classification"] == "Integer Literal":
             right = int(right["value"])
         elif right["type"] == "Operand" and right["classification"] == "Float Literal":
@@ -193,6 +204,8 @@ class SemanticAnalyzer:
         elif value["type"] == "Typecast":
             if value["typing"] == "NUMBAR":
                 self.symbol_table[var_name] = ("Float Literal", float(self.symbol_table[value["variable"]][1]))
+            elif value["typing"] == "NUMBR":
+                self.symbol_table[var_name] = ("Integer Literal", int(self.symbol_table[value["variable"]][1]))
             elif value["typing"] == "TROOF":
                 actual_val = self.get_var_value(value["variable"])
                 if actual_val == "0":
@@ -209,16 +222,48 @@ class SemanticAnalyzer:
             if item["type"] == "Operand" and item["classification"] == "Variable Identifier":
                 #check if variable was declared by checking in the symbol_table
                 text += str(self.get_var_value(item["value"]))
-            elif item["type"] == "Operand" and item["classification"] == "String Literal":
-                text += item["value"]
+            # elif item["type"] == "Operand" and item["classification"] == "String Literal":
+            #     text += item["value"]
+            else:
+                text +=item["value"]
         return text
 
 
     def get_var_value(self, var_name):
         if var_name not in self.symbol_table:
             raise RuntimeError(f"Undefined variable: {var_name}")
-        # print(self.symbol_table[var_name][1])
         return self.symbol_table[var_name][1]
+    
+    def math_get_var_value(self, var_name):
+        if var_name not in self.symbol_table:
+            raise RuntimeError(f"Undefined variable: {var_name}")
+        var_tuple = self.symbol_table[var_name]
+        if var_tuple[0] == "Integer Literal":
+            return int(var_tuple[1])
+        elif var_tuple[0] == "Float Literal":
+            return float(var_tuple[1])
+        elif var_tuple[0] == "String Literal":
+            try:
+                return int(var_tuple[1])
+            except ValueError:
+                try:
+                    return float(var_tuple[1])
+                except ValueError:
+                    if var_tuple[1] == "WIN":
+                        return 1
+                    elif var_tuple[1] == "FAIL" or var_tuple[1] == "NOOB":
+                        return 0
+                    else:
+                        raise RuntimeError(f"Invalid value for variable {var_name}")
+        elif var_tuple[0] == "Boolean Literal":
+            if var_tuple[1] == "WIN":
+                return 1
+            else:
+                return 0
+        elif var_tuple[0] == "Type Literal" and var_tuple[1] == "NOOB":
+            return 0
+        else:
+            raise RuntimeError(f"Invalid value for variable {var_name}")
     
     def execute_boolean_special(self, node):
         if node["operator"] == "All":
@@ -260,8 +305,14 @@ class SemanticAnalyzer:
         left = node["left"]
         if left["type"] == "Operand" and left["classification"] == "Variable Identifier":
             left = self.get_var_value(left["value"])
-        elif left["type"] == "Operand" and (left["classification"] == "String Literal" or left["classification"] == "Boolean Literal"):
+        elif left["type"] == "Operand" and left["classification"] == "Boolean Literal":
             left = left["value"]
+        elif left["type"] == "Operand" and left["classification"] == "Integer Literal":
+            left = "FAIL" if left["value"] == "0" else "WIN"
+        elif left["type"] == "Operand" and left["classification"] == "Float Literal":
+            left = "FAIL" if float(left["value"]) == 0 else "WIN"
+        elif left["type"] == "Operand" and left["classification"] == "String Literal":
+            left = "FAIL" if left["value"] == "" else "WIN"
             
 
         right = node["right"]
@@ -284,12 +335,21 @@ class SemanticAnalyzer:
     def execute_math(self, node):
         left = node["left"]
         if left["type"] == "Operand" and left["classification"] == "Variable Identifier":
-            left = self.get_var_value(left["value"])
+            left = self.math_get_var_value(left["value"])
         elif left["type"] == "Operand" and left["classification"] == "String Literal":
-            left = int(left["value"])
-        elif left["type"] == "Math":
-            left = self.execute_math(left)
-        elif not isinstance(left,float) and left["type"] == "Operand" and left["classification"] == "Boolean Literal":
+            try:
+                left = int(left["value"])
+            except ValueError:
+                try:
+                    left = float(left["value"])
+                except ValueError:
+                    if left["value"] == "WIN":
+                        left = 1
+                    elif left["value"] == "FAIL" or left["value"] == "NOOB":
+                        left = 0
+                    else:
+                        raise RuntimeError(f"Invalid value for \"{left["value"]}\")")
+        elif left["type"] == "Operand" and left["classification"] == "Boolean Literal":
             if left["value"] == "FAIL":
                 left = 0
             else:
@@ -298,15 +358,26 @@ class SemanticAnalyzer:
             left = int(left["value"])
         elif left["type"] == "Operand" and left["classification"] == "Float Literal":
             left = float(left["value"])
+        elif left["type"] == "Math":
+            left = self.execute_math(left)
 
         right = node["right"]
         if right["type"] == "Operand" and right["classification"] == "Variable Identifier":
-            right = self.get_var_value(right["value"])
+            right = self.math_get_var_value(right["value"])
         elif right["type"] == "Operand" and right["classification"] == "String Literal":
-            right = int(right["value"])
-        elif right["type"] == "Math":
-            right = self.execute_math(right)
-        elif not isinstance(right,float) and right["type"] == "Operand" and right["classification"] == "Boolean Literal":
+            try:
+                right = int(right["value"])
+            except ValueError:
+                try:
+                    right = float(right["value"])
+                except ValueError:
+                    if right["value"] == "WIN":
+                        right = 1
+                    elif right["value"] == "FAIL" or right["value"] == "NOOB":
+                        right = 0
+                    else:
+                        raise RuntimeError(f"Invalid value for \"{right["value"]}\")")
+        elif right["type"] == "Operand" and right["classification"] == "Boolean Literal":
             if right["value"] == "FAIL":
                 right = 0
             else:
@@ -315,19 +386,30 @@ class SemanticAnalyzer:
             right = int(right["value"])
         elif right["type"] == "Operand" and right["classification"] == "Float Literal":
             right = float(right["value"])
+        elif right["type"] == "Math":
+            right = self.execute_math(right)
 
         if node["operator"] == "Add":
-            return int(left) + int(right)
+            return left + right
         elif node["operator"] == "Subtract":
-            return int(left) - int(right)
+            return left - right
         elif node["operator"] == "Multiply":
-            return int(left) * int(right)
+            return left * right
         elif node["operator"] == "Divide":
-            return int(left) / int(right)
+            if isinstance(left, int) and isinstance(right, int):
+                return left // right
+            else:
+                return left / right
         elif node["operator"] == "Modulo":
-            return int(left) % int(right)
+            return left % right
         elif node["operator"] == "Max":
-            return max(int(left), int(right))
+            if isinstance(left, int) and isinstance(right, int):
+                return max(left, right)
+            else:
+                return float(max(left, right))
         elif node["operator"] == "Min":
-            return min(int(left), int(right))
+            if isinstance(left, int) and isinstance(right, int):
+                return min(left, right)
+            else:
+                return float(min(left, right))
 
