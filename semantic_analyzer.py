@@ -32,6 +32,11 @@ class SemanticAnalyzer:
         for statement in statements:
             self.execute_statement(statement)
 
+    def runtime_error(self, message):
+        self.console.config(state=tk.NORMAL)
+        self.console.insert(tk.END, "Semantic Error: " + message + "\n")
+        self.console.config(state=tk.DISABLED)
+        raise RuntimeError(message)
 
     def execute_statement(self, node):
         if node["type"] == "Print":
@@ -39,7 +44,7 @@ class SemanticAnalyzer:
         elif node["type"] == "Scan":
             # check if variable was declared by checking in the symbol_table
             if node["variable"] not in self.symbol_table:
-                raise RuntimeError(f"Undefined variable: {node['variable']}")
+                self.runtime_error(f"Undefined variable: {node["variable"]}")
             else:
                 self.console_input(node["variable"])
         elif node["type"] == "Assignment":
@@ -56,10 +61,16 @@ class SemanticAnalyzer:
         if node["class"] == "Expression":
             if node["value"]["type"] == "Math":
                 return ("Integer Literal", self.execute_math(node["value"]))
+            elif node["value"]["type"] == "Concatenation":
+                return ("String Literal", self.execute_concat(node["value"]["value"]))
+            elif node["value"]["type"] == "Boolean":
+                return ("Boolean Literal", self.execute_boolean(node["value"]))
+            elif node["value"]["type"] == "Comparison" or node["value"]["type"] == "Relational":
+                return ("Boolean Literal", self.execute_comparison_relational(node["value"]))
         elif node["class"] == "Variable Identifier":
             return (self.symbol_table[node["value"]])
         else:
-            raise RuntimeError(f"Invalid return value: {node['value']}")
+            self.runtime_error(f"Invalid return value: {node["value"]}")
 
     def input_dialog(self, title, prompt):
         def on_enter():
@@ -268,24 +279,24 @@ class SemanticAnalyzer:
                 else:
                     self.symbol_table[var_name] = ("Boolean Literal", "WIN")
         else:
-            raise RuntimeError(f"Invalid assignment value: {value}")
+            self.runtime_error(f"Invalid assignment value: {value}")
         
     def execute_function_call(self, node):
         function_name = node["name"]
         
         function = self.functions[function_name]
         if not function:
-            raise RuntimeError(f"Function {function_name} is not defined")
+            self.runtime_error(f"Function {function_name} is not defined")
         
         if len(function["param"]) != len(node["param"]):
-            raise RuntimeError(f"Function {function_name} expects {len(function['param'])} arguments, got {len(node['param'])}")
+            self.runtime_error(f"Function {function_name} expects {len(function["param"])} arguments, got {len(node["param"])}")
         
         params = []
         for param in node["param"]:
             param = param["value"]
             if param["type"] == "Operand" and param["classification"] == "Variable Identifier":
                 if param["value"] not in self.symbol_table:
-                    raise RuntimeError(f"Undefined variable: {param['value']}")
+                    self.runtime_error(f"Undefined variable: {param["value"]}")
                 params.append(self.symbol_table[param["value"]])
             elif param["type"] == "Operand" and param["classification"] == "String Literal":
                 params.append(("String Literal", param["value"]))
@@ -308,7 +319,7 @@ class SemanticAnalyzer:
             elif param["type"] == "Comparison" or param["type"] == "Relational":
                 params.append(("Boolean Literal", self.execute_comparison_relational(param)))
             else:
-                raise RuntimeError(f"Invalid argument: {param}")
+                self.runtime_error(f"Invalid argument: {param}")
             
         for i, param in enumerate(function["param"]):
             self.symbol_table[param["name"]] = params[i]
@@ -343,12 +354,12 @@ class SemanticAnalyzer:
 
     def get_var_value(self, var_name):
         if var_name not in self.symbol_table:
-            raise RuntimeError(f"Undefined variable: {var_name}")
+            self.runtime_error(f"Undefined variable: {var_name}")
         return self.symbol_table[var_name][1]
     
     def math_get_var_value(self, var_name):
         if var_name not in self.symbol_table:
-            raise RuntimeError(f"Undefined variable: {var_name}")
+            self.runtime_error(f"Undefined variable: {var_name}")
         var_tuple = self.symbol_table[var_name]
         if var_tuple[0] == "Integer Literal":
             return int(var_tuple[1])
@@ -366,7 +377,7 @@ class SemanticAnalyzer:
                     elif var_tuple[1] == "FAIL" or var_tuple[1] == "NOOB":
                         return 0
                     else:
-                        raise RuntimeError(f"Invalid value for variable {var_name}")
+                        self.runtime_error(f"Invalid value for variable {var_name}")
         elif var_tuple[0] == "Boolean Literal":
             if var_tuple[1] == "WIN":
                 return 1
@@ -375,7 +386,7 @@ class SemanticAnalyzer:
         elif var_tuple[0] == "Type Literal" and var_tuple[1] == "NOOB":
             return 0
         else:
-            raise RuntimeError(f"Invalid value for variable {var_name}")
+            self.runtime_error(f"Invalid value for variable {var_name}")
     
     def execute_boolean_special(self, node):
         if node["operator"] == "All":
@@ -460,7 +471,7 @@ class SemanticAnalyzer:
                     elif left["value"] == "FAIL" or left["value"] == "NOOB":
                         left = 0
                     else:
-                        raise RuntimeError(f"Invalid value for \"{left["value"]}\")")
+                        self.runtime_error(f"Invalid value for \"{left["value"]}\")")
         elif left["type"] == "Operand" and left["classification"] == "Boolean Literal":
             if left["value"] == "FAIL":
                 left = 0
@@ -488,7 +499,7 @@ class SemanticAnalyzer:
                     elif right["value"] == "FAIL" or right["value"] == "NOOB":
                         right = 0
                     else:
-                        raise RuntimeError(f"Invalid value for \"{right["value"]}\")")
+                        self.runtime_error(f"Invalid value for \"{right["value"]}\")")
         elif right["type"] == "Operand" and right["classification"] == "Boolean Literal":
             if right["value"] == "FAIL":
                 right = 0
