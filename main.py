@@ -237,8 +237,6 @@ class InterpreterApp:
 
         #1. Tokenize each line in lolcode and display in the list of tokens (lexemes) - LEXICAL ANALYSIS
         lexemes = tokenize(lolcode)
-        # print(lexemes)
-
         self.display_lexemes(lexemes)
 
         #2. Convert tokens to symbol table - SYNTAX ANALYSIS
@@ -246,17 +244,9 @@ class InterpreterApp:
         symbol_table, ast = parse.program()
         self.display_symbol_table(symbol_table)
 
-        if ast[0] == "Syntax Error":
-            #do something else
-            print("failed")
-            self.console_part.insert(tk.END, "Syntax Error: " + ast[1])
-
         #3. If syntax is correct (there is a Generated AST from syntax analysis), perform semantic analysis
-        else:
-            #semantic analysis
-            # print(ast)
-            semantic = SemanticAnalyzer(symbol_table, ast[1], self.console_part)
-            semantic.run()
+        semantic = SemanticAnalyzer(symbol_table, ast[1], self.console_part, self.symbols)
+        semantic.run()
 
     # -----------------------------------------------------------------------------------------
     # Updates the Lexemes part of the GUI once the lines of the lolcode in the text editor are tokenized
@@ -275,15 +265,11 @@ class InterpreterApp:
                 self.lexemes.insert('', tk.END, values=(lexeme, classification))
 
     # -----------------------------------------------------------------------------------------
-    # Updates the Symbol Table part of the GUI once the tokens' syntax are checked
+    # Updates the Symbol Table part of the GUI once the tokens' syntax are checked (initially just the variables with no expressions as their values)
     # -----------------------------------------------------------------------------------------
     def display_symbol_table(self, symbol_table):
         for variable, (_, value) in symbol_table.items():
             self.symbols.insert('', tk.END, values=(variable, value))
-
-    def display_console(self, output):
-        for line in output:
-            self.console_part.insert(tk.END, line)
             
 
 # Create and run the app

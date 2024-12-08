@@ -108,88 +108,134 @@ class Parser:
             if self.expect("Variable Identifier"):
                 funcident = self.current_token()[0]
                 self.consume("Variable Identifier")
+
+                param = []
                 if self.expect("Linebreak"):
                     self.consume("Linebreak")
                     statements = self.funcbody()
                     self.consume("Function Delimiter", "IF U SAY SO")
-                    return {"type": "Function Definition", "name": funcident, "statements": statements}
+                    return {"type": "Function Definition", "name": funcident, "param": param, "statements": statements}
                 elif self.expect("Function Delimiter", "IF U SAY SO"):
                     self.consume("Function Delimiter", "IF U SAY SO")
-                    return {"type": "Function Definition", "name": funcident, "statements": []}
-                elif self.expect("Function Delimiter", "YR"):
-                    self.consume("Function Delimiter", "YR")
-                    param = self.param()
+                    return {"type": "Function Definition", "name": funcident, "param": param, "statements": []}
+                elif self.expect("Variable Call", "YR"):
+                    param.extend(self.param())
                     self.consume("Linebreak")
                     statements = self.funcbody()
                     self.consume("Function Delimiter", "IF U SAY SO")
                     return {"type": "Function Definition", "name": funcident, "param": param, "statements": statements}
                 else:
                     self.parse_error(f"Syntax Error: Expected a linebreak or 'IF U SAY SO' after function definition, found {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
-                    # raise SyntaxError(f"Expected a linebreak or 'IF U SAY SO' after function definition, found {self.current_token()}")
             else:
                 self.parse_error(f"Syntax Error: Expected a function identifier after 'HOW IZ I', found {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
-                # raise SyntaxError(f"Expected a function identifier after 'HOW IZ I', found {self.current_token()}")
 
     def funcbody(self):
         """
         <funcbody> ::= <statement> | <statement> <funcbody> | <funcret>
         """
         statements = []
-        while not self.expect("Function Delimiter", "IF U SAY SO"):
-            if self.expect("Code Delimiter", "HAI"):
-                self.parse_error(f"Syntax Error: Unexpected 'HAI' found before 'IF U SAY SO' at line {self.current_token()[2]}.")
-                # raise SyntaxError(f"Unexpected 'HAI' found before 'IF U SAY SO': {self.current_token()}")
-            elif self.current_token() is None:
-                self.parse_error("Syntax Error: No 'IF U SAY SO' found, missing function delimiter.")
-                # raise SyntaxError("No 'IF U SAY SO' found, missing function delimiter.")
-            elif self.expect("Return With Value") or self.expect("Break/Return"):
-                statements.append(self.funcret())
-                break
-                #anything after GTFO or FOUND YR is ignored
+        while self.current_token() and not self.expect("Function Delimiter", "IF U SAY SO"):
+            if self.current_token()[1] == "Code Delimiter":
+                self.parse_error(f"Syntax Error: Unexpected code delimiter: {self.current_token()} inside function body.")
             else:
-                statements.append(self.statement())
-        return statements
+                expr_ops = ["Add", "Subtract", "Multiply", "Divide", "Modulo", "Max", "Min", "And", "Or", "Xor", "Not", "Any", "All", "Equal", "Not Equal"]
+                if self.expect("Output Keyword"):  #VISIBLE keyword (print)
+                    statements.append(self.print())
+                elif self.expect("Input Keyword"):  #GIMMEH keyword (scan)
+                    statements.append(self.scan())
+                elif self.expect("Variable Identifier") and self.next_token()[1] == "Variable Reassignment":  #(assignment)
+                    statements.append(self.assignment())
+                elif self.current_token()[1] in expr_ops:  #(expr)
+                    statements.append(self.expr())
+                elif self.expect("Concatenation"):  #SMOOSH keyword (concatenate)
+                    statements.append(self.concatenate())
+                elif self.expect("Typecasting Declaration", "MAEK"):  #MAEK keyword (typecast)
+                    statements.append(self.typecast())
+                elif self.expect("Variable Identifier") and self.next_token()[1] == "Typecasting Reassignment":  #IS NOW A keyword (retype)
+                    statements.append(self.retype())
+                elif self.expect("Function Call Delimiter", "I IZ"):  #I IZ keyword (funccall)
+                    statements.append(self.funccall())
+                elif self.expect("Loop Delimiter", "IM IN YR"):  #IM IN YR keyword (loop)
+                    statements.append(self.loop())
+                elif self.expect("If-Then Delimiter", "O RLY?"):  #O RLY keyword (ifthen)
+                    statements.append(self.ifthen())
+                elif self.expect("Switch-Case Delimiter", "WTF?"):  #WTF? keyword (switchcase)
+                    statements.append(self.switchcase())
+                elif self.expect("Comment"):  #BTW keyword (comment)
+                    self.comment()
+                elif self.expect("Multiline Comment Delimiter", "OBTW"):  #OBTW keyword (multiline comment)
+                    self.multcomment()
+                elif self.expect("Linebreak"):
+                    self.consume("Linebreak")
+                    if self.expect("Loop Delimiter", "IM OUTTA YR"):
+                        break
+                elif self.expect("Else If Keyword", "MEBBE"):
+                    return statements
+                elif self.expect("Else Keyword", "NO WAI"):
+                    return statements
+                elif self.expect("If-Then/Switch-Case Delimiter", "OIC"):
+                    return statements
+                elif self.expect("Multiline Comment Delimiter", "TLDR"):
+                    self.parse_error(f"Syntax Error: Unexpected TLDR found at line {self.current_token()[2]}, no OBTW found before it.")
+                elif self.expect("Return With Value") or self.expect("Break/Return"):
+                    statements.append(self.funcret())
+                    break
+                    #anything after GTFO or FOUND YR is ignored
+                else:
+                    self.parse_error(f"Syntax Error: Unexpected token in statement: {self.current_token()}, with next token {self.next_token()}")
+                
+        if self.current_token() is None:
+            self.parse_error("Syntax Error: No IF U SAY SO found, missing function delimiter.")
+        else:
+            #IF U SAY SO should be next
+            return statements
     
     def param(self):
         """
-        <param> ::= YR varident | YR varident <paramext>
+        <param> ::= YR varident | YR varident AN <param>
         """
-        if self.expect("Function Delimiter", "YR"):
-            self.consume("Function Delimiter", "YR")
-            if self.expect("Variable Identifier"):
-                varident = self.current_token()[0]
-                self.consume("Variable Identifier")
-                if self.expect("Function Delimiter", "AN"):
-                    return {"type": "Parameter", "name": varident, "next": self.paramext()}
-                else:
-                    return {"type": "Parameter", "name": varident}
-            else:
-                self.parse_error(f"Syntax Error: Expected a variable identifier after 'YR', found {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
-                # raise SyntaxError(f"Expected a variable identifier after 'YR', found {self.current_token()}")
-        else:
-            self.parse_error(f"Syntax Error: Expected 'YR' after 'HOW IZ I', found {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
-            # raise SyntaxError(f"Expected 'YR' after 'HOW IZ I', found {self.current_token()}")
-
-    def paramext(self):
-        """
-        <paramext> ::= AN YR varident | AN YR varident <paramext>
-        """
-        if self.expect("Another One Keyword", "AN"):
+        param = []
+        if self.current_token()[1] == "Variable Call" and self.next_next_token()[1] == "Another One Keyword":
+            self.consume("Variable Call", "YR")
+            varident = self.current_token()[0]
+            self.consume("Variable Identifier")
+            param.append({"type": "Parameter", "name": varident})
             self.consume("Another One Keyword", "AN")
-            self.consume("Function Delimiter", "YR")
-            if self.expect("Variable Identifier"):
-                varident = self.current_token()[0]
-                self.consume("Variable Identifier")
-                if self.expect("Function Delimiter", "AN"):
-                    return {"type": "Parameter", "name": varident, "next": self.paramext()}
-                else:
-                    return {"type": "Parameter", "name": varident}
+            param.extend(self.param())
+        elif self.current_token()[1] == "Variable Call" and self.next_token()[1] == "Variable Identifier":
+            self.consume("Variable Call", "YR")
+            varident = self.current_token()[0]
+            self.consume("Variable Identifier")
+            param.append({"type": "Parameter", "name": varident})
+
+        return param
+    
+    def param_funccall(self):
+        """
+        <param_funccall> ::= YR <operand> | YR <expr> | YR <operand> AN <param> | YR <expr> AN <param>
+        """
+        param = []
+        literal_varident = ["Variable Identifier", "Integer Literal", "Float Literal", "String Delimiter", "Boolean Literal"]
+        expression = ["Add", "Subtract", "Multiply", "Divide", "Modulo", "Max", "Min", "And", "Or", "Xor", "Not", "Any", "All", "Equal", "Not Equal"]
+
+        self.consume("Variable Call", "YR")
+        while self.current_token() and not self.expect("Function Call Delimiter", "MKAY"):
+            if self.current_token()[1] in literal_varident:
+                operand = self.operand()
+                param.append({"type": "Parameter", "value": operand, "class": "Operand"})
+            elif self.current_token()[1] in expression:
+                expr = self.expr()
+                param.append({"type": "Parameter", "value": expr, "class": "Expression"})
+            elif self.expect("Another One Keyword", "AN"):
+                self.consume("Another One Keyword", "AN")
+                param.extend(self.param_funccall())
             else:
-                self.parse_error(f"Syntax Error: Expected a variable identifier after 'AN YR', found {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
-                # raise SyntaxError(f"Expected a variable identifier after 'YR', found {self.current_token()}")
+                self.parse_error(f"Syntax Error: Unexpected token found {self.current_token()}")
+
+        if self.current_token() is None:
+            self.parse_error("Syntax Error: No MKAY found, missing function call delimiter.")
         else:
-            self.parse_error(f"Syntax Error: Expected 'AN' after 'YR', found {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
-            # raise SyntaxError(f"Expected 'AN' after 'YR', found {self.current_token()}")
+            return param
 
     def funcret(self):
         """
@@ -197,15 +243,16 @@ class Parser:
         """
         if self.expect("Return With Value"):
             self.consume("Return With Value")
+            expression = ["Add", "Subtract", "Multiply", "Divide", "Modulo", "Max", "Min", "And", "Or", "Xor", "Not", "Any", "All", "Equal", "Not Equal"]
             if self.expect("Variable Identifier"):
                 varident = self.current_token()[0]
                 self.consume("Variable Identifier")
                 self.consume("Linebreak")
-                return {"type": "Return", "value": varident}
-            elif self.expect("Variable Identifier"):
+                return {"type": "Return", "value": varident, "class": "Variable Identifier"}
+            elif self.current_token()[1] in expression:
                 expr = self.expr()
                 self.consume("Linebreak")
-                return {"type": "Return", "value": expr}
+                return {"type": "Return", "value": expr, "class": "Expression"}
             else:
                 self.parse_error(f"Syntax Error: Expected a variable identifier or expression after 'FOUND YR', found {self.current_token()[0]}-{self.current_token()[1]} at line {self.current_token()[2]}.")
                 # raise SyntaxError(f"Expected a variable identifier or expression after 'FOUND YR', found {self.current_token()}")
@@ -230,8 +277,8 @@ class Parser:
                 if self.expect("Function Call Delimiter", "MKAY"):
                     self.consume("Function Call Delimiter", "MKAY")
                     return {"type": "Function Call", "name": funcident}
-                elif self.expect("Function Delimiter", "YR"):
-                    param = self.param()
+                elif self.expect("Variable Call", "YR"):
+                    param = self.param_funccall()
                     self.consume("Function Call Delimiter", "MKAY")
                     return {"type": "Function Call", "name": funcident, "param": param}
                 else:
@@ -367,11 +414,11 @@ class Parser:
             elif self.current_token() is None:
                 self.parse_error("Syntax Error: No 'IM OUTTA YR' found, missing loop delimiter.")
             elif self.expect("Return With Value") or self.expect("Break/Return"):
-                statements.append(self.funcret())
+                statements.extend(self.funcret())
                 break
                 #anything after GTFO or FOUND YR is ignored
             else:
-                statements.append(self.statement())
+                statements.extend(self.statement())
         return statements
     
     def conditionals(self):
@@ -650,27 +697,29 @@ class Parser:
         if self.expect("Variable Identifier") or self.expect("Integer Literal") or self.expect("Float Literal") or self.expect("String Delimiter") or self.expect("Boolean Literal"):
             it_value = self.current_token()[0]
             self.consume(self.current_token()[1])
-            if self.expect("Switch-Case Delimiter", "WTF?"):
-                self.consume("Switch-Case Delimiter", "WTF?")
-                if self.expect("Linebreak"):
-                    self.consume("Linebreak")
-                    cases = self.case()
-                    if self.expect("Default Keyword", "OMGWTF"):
-                        self.consume("Default Keyword", "OMGWTF")
-                        if self.expect("Linebreak"):
-                            self.consume("Linebreak")
-                            default = self.statement()
-                            if self.expect("If-Then/Switch-Case Delimiter", "OIC"):
-                                self.consume("If-Then/Switch-Case Delimiter", "OIC")
-                                return {"type": "Switch-Case", "it_value": it_value, "cases": cases, "default": default}
+            if self.expect("Linebreak"):
+                self.consume("Linebreak")
+                if self.expect("Switch-Case Delimiter", "WTF?"):
+                    self.consume("Switch-Case Delimiter", "WTF?")
+                    if self.expect("Linebreak"):
+                        self.consume("Linebreak")
+                        cases = self.case()
+                        if self.expect("Default Keyword", "OMGWTF"):
+                            self.consume("Default Keyword", "OMGWTF")
+                            if self.expect("Linebreak"):
+                                self.consume("Linebreak")
+                                default = self.statement()
+                                if self.expect("If-Then/Switch-Case Delimiter", "OIC"):
+                                    self.consume("If-Then/Switch-Case Delimiter", "OIC")
+                                    return {"type": "Switch-Case", "it_value": it_value, "cases": cases, "default": default}
+                                else:
+                                    raise SyntaxError(f"Expected 'OIC' after default case, found {self.current_token()}")
                             else:
-                                raise SyntaxError(f"Expected 'OIC' after default case, found {self.current_token()}")
+                                raise SyntaxError(f"Expected a linebreak after 'OMGWTF', found {self.current_token()}")
                         else:
-                            raise SyntaxError(f"Expected a linebreak after 'OMGWTF', found {self.current_token()}")
+                            raise SyntaxError(f"Expected 'OMGWTF' after cases, found {self.current_token()}")
                     else:
-                        raise SyntaxError(f"Expected 'OMGWTF' after cases, found {self.current_token()}")
-                else:
-                    raise SyntaxError(f"Expected a linebreak after 'WTF?', found {self.current_token()}")
+                        raise SyntaxError(f"Expected a linebreak after 'WTF?', found {self.current_token()}")
             else:
                 raise SyntaxError(f"Expected 'WTF?' after variable identifier, found {self.current_token()}")
 
@@ -693,6 +742,28 @@ class Parser:
             else:
                 raise SyntaxError(f"Expected a literal after 'OMG', found {self.current_token()}")
         return cases
+    
+    def literal(self):
+        '''Should return the literals for the switch-cases'''
+        if self.expect("Integer Literal") or self.expect("Float Literal") or self.expect("String Delimiter") or self.expect("Boolean Literal"):
+            if self.expect("Integer Literal"):
+                literal = self.current_token()[0]
+                self.consume("Integer Literal")
+            elif self.expect("Float Literal"):
+                literal = self.current_token()[0]
+                self.consume("Float Literal")
+            elif self.expect("String Delimiter"):
+                self.consume("String Delimiter")
+                if self.expect("String Literal"):
+                    literal = self.current_token()[0]
+                    self.consume("String Literal")
+                    if self.expect("String Delimiter"):
+                        self.consume("String Delimiter")
+            elif self.expect("Boolean Literal"):
+                literal = self.current_token()[0]
+                self.consume("Boolean Literal")
+                
+        return literal
 
     def statement(self):
         """
@@ -737,7 +808,7 @@ class Parser:
                     statements.append(self.loop())
                 elif self.expect("If-Then Delimiter", "O RLY?"):  #O RLY keyword (ifthen)
                     statements.append(self.ifthen())
-                elif self.expect("Switch-Case Delimiter", "WTF?"):  #WTF? keyword (switchcase)
+                elif self.expect("Variable Identifier") and self.next_next_token()[1] == "Switch-Case Delimiter":  #WTF? keyword (switchcase)
                     statements.append(self.switchcase())
                 elif self.expect("Comment"):  #BTW keyword (comment)
                     self.comment()
@@ -745,7 +816,11 @@ class Parser:
                     self.multcomment()
                 elif self.expect("Linebreak"):
                     self.consume("Linebreak")
-                    if self.expect("Loop Delimiter", "IM OUTTA YR"):
+                    if self.expect("Loop Delimiter", "IM OUTTA YR") or self.expect("Break/Return", "GTFO"):
+                        if self.expect("Break/Return", "GTFO"):
+                            self.consume("Break/Return")
+                            if self.expect("Linebreak"):
+                                self.consume("Linebreak")
                         break
                 elif self.expect("Else If Keyword", "MEBBE"):
                     return statements
@@ -753,12 +828,12 @@ class Parser:
                     return statements
                 elif self.expect("If-Then/Switch-Case Delimiter", "OIC"):
                     return statements
+                elif self.expect("Default Keyword", "OMGWTF"):
+                    return statements
                 elif self.expect("Multiline Comment Delimiter", "TLDR"):
                     self.parse_error(f"Syntax Error: Unexpected TLDR found at line {self.current_token()[2]}, no OBTW found before it.")
-                    # raise SyntaxError(f"Unexpected TLDR found at line {self.current_token()[2]}, no OBTW found before it.")
                 else:
                     self.parse_error(f"Syntax Error: Unexpected token in statement: {self.current_token()}, with next token {self.next_token()}")
-                    # raise SyntaxError(f"Unexpected token in statement: {self.current_token()}, with next token {self.next_token()}")
                 
         if self.current_token() is None:
             self.parse_error("Syntax Error: No KTHXBYE found, missing code delimiter.")
