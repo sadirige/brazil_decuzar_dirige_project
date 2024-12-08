@@ -697,27 +697,29 @@ class Parser:
         if self.expect("Variable Identifier") or self.expect("Integer Literal") or self.expect("Float Literal") or self.expect("String Delimiter") or self.expect("Boolean Literal"):
             it_value = self.current_token()[0]
             self.consume(self.current_token()[1])
-            if self.expect("Switch-Case Delimiter", "WTF?"):
-                self.consume("Switch-Case Delimiter", "WTF?")
-                if self.expect("Linebreak"):
-                    self.consume("Linebreak")
-                    cases = self.case()
-                    if self.expect("Default Keyword", "OMGWTF"):
-                        self.consume("Default Keyword", "OMGWTF")
-                        if self.expect("Linebreak"):
-                            self.consume("Linebreak")
-                            default = self.statement()
-                            if self.expect("If-Then/Switch-Case Delimiter", "OIC"):
-                                self.consume("If-Then/Switch-Case Delimiter", "OIC")
-                                return {"type": "Switch-Case", "it_value": it_value, "cases": cases, "default": default}
+            if self.expect("Linebreak"):
+                self.consume("Linebreak")
+                if self.expect("Switch-Case Delimiter", "WTF?"):
+                    self.consume("Switch-Case Delimiter", "WTF?")
+                    if self.expect("Linebreak"):
+                        self.consume("Linebreak")
+                        cases = self.case()
+                        if self.expect("Default Keyword", "OMGWTF"):
+                            self.consume("Default Keyword", "OMGWTF")
+                            if self.expect("Linebreak"):
+                                self.consume("Linebreak")
+                                default = self.statement()
+                                if self.expect("If-Then/Switch-Case Delimiter", "OIC"):
+                                    self.consume("If-Then/Switch-Case Delimiter", "OIC")
+                                    return {"type": "Switch-Case", "it_value": it_value, "cases": cases, "default": default}
+                                else:
+                                    raise SyntaxError(f"Expected 'OIC' after default case, found {self.current_token()}")
                             else:
-                                raise SyntaxError(f"Expected 'OIC' after default case, found {self.current_token()}")
+                                raise SyntaxError(f"Expected a linebreak after 'OMGWTF', found {self.current_token()}")
                         else:
-                            raise SyntaxError(f"Expected a linebreak after 'OMGWTF', found {self.current_token()}")
+                            raise SyntaxError(f"Expected 'OMGWTF' after cases, found {self.current_token()}")
                     else:
-                        raise SyntaxError(f"Expected 'OMGWTF' after cases, found {self.current_token()}")
-                else:
-                    raise SyntaxError(f"Expected a linebreak after 'WTF?', found {self.current_token()}")
+                        raise SyntaxError(f"Expected a linebreak after 'WTF?', found {self.current_token()}")
             else:
                 raise SyntaxError(f"Expected 'WTF?' after variable identifier, found {self.current_token()}")
 
@@ -740,6 +742,28 @@ class Parser:
             else:
                 raise SyntaxError(f"Expected a literal after 'OMG', found {self.current_token()}")
         return cases
+    
+    def literal(self):
+        '''Should return the literals for the switch-cases'''
+        if self.expect("Integer Literal") or self.expect("Float Literal") or self.expect("String Delimiter") or self.expect("Boolean Literal"):
+            if self.expect("Integer Literal"):
+                literal = self.current_token()[0]
+                self.consume("Integer Literal")
+            elif self.expect("Float Literal"):
+                literal = self.current_token()[0]
+                self.consume("Float Literal")
+            elif self.expect("String Delimiter"):
+                self.consume("String Delimiter")
+                if self.expect("String Literal"):
+                    literal = self.current_token()[0]
+                    self.consume("String Literal")
+                    if self.expect("String Delimiter"):
+                        self.consume("String Delimiter")
+            elif self.expect("Boolean Literal"):
+                literal = self.current_token()[0]
+                self.consume("Boolean Literal")
+                
+        return literal
 
     def statement(self):
         """
@@ -784,7 +808,7 @@ class Parser:
                     statements.append(self.loop())
                 elif self.expect("If-Then Delimiter", "O RLY?"):  #O RLY keyword (ifthen)
                     statements.append(self.ifthen())
-                elif self.expect("Switch-Case Delimiter", "WTF?"):  #WTF? keyword (switchcase)
+                elif self.expect("Variable Identifier") and self.next_next_token()[1] == "Switch-Case Delimiter":  #WTF? keyword (switchcase)
                     statements.append(self.switchcase())
                 elif self.expect("Comment"):  #BTW keyword (comment)
                     self.comment()
@@ -792,13 +816,19 @@ class Parser:
                     self.multcomment()
                 elif self.expect("Linebreak"):
                     self.consume("Linebreak")
-                    if self.expect("Loop Delimiter", "IM OUTTA YR"):
+                    if self.expect("Loop Delimiter", "IM OUTTA YR") or self.expect("Break/Return", "GTFO"):
+                        if self.expect("Break/Return", "GTFO"):
+                            self.consume("Break/Return")
+                            if self.expect("Linebreak"):
+                                self.consume("Linebreak")
                         break
                 elif self.expect("Else If Keyword", "MEBBE"):
                     return statements
                 elif self.expect("Else Keyword", "NO WAI"):
                     return statements
                 elif self.expect("If-Then/Switch-Case Delimiter", "OIC"):
+                    return statements
+                elif self.expect("Default Keyword", "OMGWTF"):
                     return statements
                 elif self.expect("Multiline Comment Delimiter", "TLDR"):
                     self.parse_error(f"Syntax Error: Unexpected TLDR found at line {self.current_token()[2]}, no OBTW found before it.")
