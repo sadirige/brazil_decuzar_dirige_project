@@ -6,14 +6,18 @@ import tkinter as tk
 class SemanticAnalyzer:
     def __init__(self, symbol_table, ast, console, symbols_gui):
         self.ast = ast
-        self.symbol_table = symbol_table  #hold variables and functions
+        self.symbol_table = symbol_table  #hold variables
+        self.functions = {}  #hold functions
         self.console = console
         self.symbols_gui = symbols_gui
 
     def run(self):
         #store functions defined in the symbol table
         for function in self.ast["functions"]:
-            self.symbol_table[function["name"]] = function
+            print(function["name"])
+            self.functions[function["name"]] = function
+        
+        print(self.functions)
             
         #variables declared between WAZZUP and BUHBYE should already be in the symbol table (added during syntax analysis)
         variables = self.ast["main_program"]["variables"]
@@ -26,7 +30,6 @@ class SemanticAnalyzer:
 
         #evaluate each statement
         for statement in statements:
-            # print(statement)
             self.execute_statement(statement)
 
 
@@ -46,9 +49,17 @@ class SemanticAnalyzer:
             self.execute_retype(node["variable"], node["retyping"])
         elif node["type"] == "Loop":
             self.execute_loop(node)
-            
-        # elif node["type"] == "FunctionCall":
-        #     self.execute_function_call(node)
+        elif node["type"] == "Function Call":
+            self.execute_function_call(node)
+        
+    def execute_return(self, node):
+        if node["class"] == "Expression":
+            if node["value"]["type"] == "Math":
+                return ("Integer Literal", self.execute_math(node["value"]))
+        elif node["class"] == "Variable Identifier":
+            return (self.symbol_table[node["value"]])
+        else:
+            raise RuntimeError(f"Invalid return value: {node['value']}")
 
     def input_dialog(self, title, prompt):
         def on_enter():
@@ -241,7 +252,7 @@ class SemanticAnalyzer:
         elif value["type"] == "Operand" and value["classification"] == "Boolean Literal":
             self.symbol_table[var_name] = ("Boolean Literal", value["value"])
             self.get_var_value(var_name)
-        elif value["type"] == "FunctionCall":
+        elif value["type"] == "Function Call":
             self.execute_function_call(value)
         elif value["type"] == "Concatenation":
             self.symbol_table[var_name] = ("String Literal", self.execute_concat(value["value"]))
@@ -258,6 +269,63 @@ class SemanticAnalyzer:
                     self.symbol_table[var_name] = ("Boolean Literal", "WIN")
         else:
             raise RuntimeError(f"Invalid assignment value: {value}")
+        
+    def execute_function_call(self, node):
+        function_name = node["name"]
+        
+        function = self.functions[function_name]
+        if not function:
+            raise RuntimeError(f"Function {function_name} is not defined")
+        
+        if len(function["param"]) != len(node["param"]):
+            raise RuntimeError(f"Function {function_name} expects {len(function['param'])} arguments, got {len(node['param'])}")
+        
+        params = []
+        for param in node["param"]:
+            param = param["value"]
+            if param["type"] == "Operand" and param["classification"] == "Variable Identifier":
+                if param["value"] not in self.symbol_table:
+                    raise RuntimeError(f"Undefined variable: {param['value']}")
+                params.append(self.symbol_table[param["value"]])
+            elif param["type"] == "Operand" and param["classification"] == "String Literal":
+                params.append(("String Literal", param["value"]))
+            elif param["type"] == "Operand" and param["classification"] == "Integer Literal":
+                params.append(("Integer Literal", param["value"]))
+            elif param["type"] == "Operand" and param["classification"] == "Float Literal":
+                params.append(("Float Literal", param["value"]))
+            elif param["type"] == "Operand" and param["classification"] == "Boolean Literal":
+                params.append(("Boolean Literal", param["value"]))
+            elif param["type"] == "Math":
+                result = self.execute_math(param)
+                if isinstance(result, int):
+                    params.append(("Integer Literal", result))
+                elif isinstance(result, float):
+                    params.append(("Float Literal", result))
+            elif param["type"] == "Concatenation":
+                params.append(("String Literal", self.execute_concat(param["value"])))
+            elif param["type"] == "Boolean":
+                params.append(("Boolean Literal", self.execute_boolean(param)))
+            elif param["type"] == "Comparison" or param["type"] == "Relational":
+                params.append(("Boolean Literal", self.execute_comparison_relational(param)))
+            else:
+                raise RuntimeError(f"Invalid argument: {param}")
+            
+        for i, param in enumerate(function["param"]):
+            self.symbol_table[param["name"]] = params[i]
+
+        for i, statement in enumerate(function["statements"]):
+            if statement["type"] == "Return":
+                self.symbol_table["IT"] = self.execute_return(statement)
+                break
+            elif statement["type"] == "Break":
+                self.symbol_table["IT"] = ("Type Literal", "NOOB")
+                break
+            else:
+                if i == len(function["statements"]) - 1:
+                    #if there are no GTFO/FOUND YR statement, the implicit IT variable will contain NOOB
+                    self.symbol_table["IT"] = ("Type Literal", "NOOB")
+                self.execute_statement(statement)
+
 
     def execute_concat(self, string):
         text = ""
