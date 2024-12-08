@@ -48,9 +48,14 @@ class SemanticAnalyzer:
             
         # elif node["type"] == "FunctionCall":
         #     self.execute_function_call(node)
-
+        elif node["type"] == "Math":
+            self.execute_expression_math(node)
+        elif node["type"] == "Concatenation":
+            self.execute_expression_concat(node["value"])
         elif node["type"] == "Comparison" or node["type"] == "Relational":
             self.execute_expression_comp_rel(node)
+        elif node["type"] == "Boolean":
+            self.execute_expression_boolean(node)
         elif node["type"] == "If-Then":
             side = self.get_var_value("IT")
 
@@ -191,8 +196,17 @@ class SemanticAnalyzer:
             self.console.insert(tk.END, text)
         self.console.config(state=tk.DISABLED)
 
-    def execute_expression_comp_rel(self,node):
+    def execute_expression_comp_rel(self, node):
         self.symbol_table["IT"] = ("Implicit Variable", self.execute_comparison_relational(node))
+
+    def execute_expression_math(self, node):
+        self.symbol_table["IT"] = ("Implicit Variable", self.execute_math(node))
+
+    def execute_expression_concat(self,node):
+        self.symbol_table["IT"] = ("Implicit Variable", self.execute_concat(node))
+
+    def execute_expression_boolean(self, node):
+        self.symbol_table["IT"] = ("Implicit Variable", self.execute_boolean(node))
 
     def execute_comparison_relational(self, node):
         left = node["left"]
