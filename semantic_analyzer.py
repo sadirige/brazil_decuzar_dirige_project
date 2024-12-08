@@ -66,8 +66,8 @@ class SemanticAnalyzer:
             self.execute_assignment(node["variable"], node["value"])
         elif node["type"] == "Retype":
             self.execute_retype(node["variable"], node["retyping"])
-        # elif node["type"] == "Switch-Case":
-        #   self.execute_switchcase(node["it_value"], node["cases"], node["default"]) 
+        elif node["type"] == "Switch-Case":
+            self.execute_switchcase(node) 
         elif node["type"] == "Loop":
             self.execute_loop(node)
         elif node["type"] == "Function Call":
@@ -481,6 +481,21 @@ class SemanticAnalyzer:
                 text += item["value"]
         return text
 
+    def execute_switchcase(self, node):
+        comp_value = self.symbol_table[node["it_value"]][1]
+        match = False
+        for cases in node["cases"]:
+            if comp_value in cases.values():
+                self.symbol_table["IT"] = comp_value
+                self.update_value_gui("IT", comp_value)
+                for statements in cases["body"]:
+                    self.execute_statement(statements)
+                match = True
+                break
+            
+        if not match and "default" in node:
+            for statements in node["default"]:
+                self.execute_statement(statements)
     def get_var_value(self, var_name):
         if var_name not in self.symbol_table:
             self.runtime_error(f"Undefined variable: {var_name}")
